@@ -116,60 +116,49 @@ the answer coloured sentence by sentence, and the ranked chunks with the gold ch
 ## System architecture
 
 ```mermaid
-flowchart LR
-    U["Browser<br/>(any device)"]
+flowchart TB
+    U(["👤 Visitor's browser · any device"])
 
-    subgraph V["Vercel · static hosting"]
-        UI["React dashboard<br/>Vite + Tailwind"]
-        DEMO[("Demo run data<br/>/demo/*.json")]
-        CFG[("backend.json<br/>backend address")]
+    subgraph V["☁️ Vercel · static hosting"]
+        direction LR
+        UI["React dashboard<br/>Vite · TypeScript · Tailwind"]
+        DEMO[("Built-in demo run<br/>/demo/*.json")]
+        CFG[("backend.json<br/>live backend address")]
     end
 
-    T{{"Cloudflare Tunnel<br/>public HTTPS address"}}
+    T{{"🔒 Cloudflare Tunnel · public HTTPS"}}
 
-    subgraph B["Team machine · Python backend (FastAPI)"]
-        API["API routes<br/>upload · questions · runs · fix · diff"]
-        ING["Ingest<br/>parse · chunk · embed"]
-        GEN["Test-set generator<br/>+ 5 quality filters"]
-        RAG["RAG under test<br/>top-50 retrieval · prompt · answer"]
-        CAS["Diagnostic cascade<br/>T1 · T2 · T3 lenses"]
-        CON["Consensus + prescriptions<br/>+ metrics"]
-        subgraph LM["Local models (CPU)"]
-            EMB["bge-small<br/>embeddings"]
-            RR["bge-reranker"]
-            LD["LettuceDetect<br/>span detector"]
-            HH["HHEM-2.1<br/>grounding"]
-        end
-        subgraph ST["Storage"]
-            CH[("ChromaDB<br/>one index per chunking")]
-            DC[("diskcache<br/>LLM + model results")]
-            RJ[("Runs<br/>JSON")]
-        end
+    subgraph B["🖥️ Team machine · FastAPI backend"]
+        direction LR
+        API["API<br/>routes"] --> ING["Ingest<br/>parse · chunk · embed"] --> GEN["Test-set<br/>generator<br/>+ 5 filters"] --> RAG["RAG under test<br/>top-50 retrieval<br/>→ answer"] --> CAS["Diagnostic cascade<br/>Tier 1 → 2 → 3"] --> CON["Consensus<br/>prescriptions<br/>metrics"]
     end
 
-    subgraph L["LLM APIs · OpenAI-compatible"]
+    subgraph M["⚙️ Local models · CPU, no API"]
+        direction LR
+        EMB["bge-small<br/>embeddings"]
+        RR["bge-reranker"]
+        LD["LettuceDetect<br/>spans"]
+        HH["HHEM-2.1<br/>grounding"]
+    end
+
+    subgraph S["💾 Storage"]
+        direction LR
+        CH[("ChromaDB<br/>vector indexes")]
+        DC[("diskcache<br/>LLM + model results")]
+        RJ[("Runs<br/>JSON")]
+    end
+
+    subgraph L["🤖 LLM APIs · OpenAI-compatible"]
+        direction LR
         G["Generator<br/>Gemini 3.5 Flash-Lite"]
-        J["Judge<br/>Groq gpt-oss-120b"]
+        J["Judge · different family<br/>Groq gpt-oss-120b"]
     end
 
-    U --> UI
-    UI --> DEMO
-    UI --> CFG
-    UI -- "uploads, new runs" --> T --> API
-    API --> ING --> CH
-    ING --> EMB
-    API --> GEN --> G
-    GEN --> J
-    API --> RAG --> CH
-    RAG --> RR
-    RAG --> G
-    RAG --> CAS
-    CAS --> LD
-    CAS --> HH
-    CAS --> J
-    CAS --> CON --> RJ
-    G -. cached .-> DC
-    J -. cached .-> DC
+    U --> V
+    UI -- "uploads · new runs" --> T --> API
+    B --> M
+    B --> S
+    B --> L
 ```
 
 | Component | Role |
