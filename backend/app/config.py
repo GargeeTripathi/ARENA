@@ -28,7 +28,14 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 GEN_MODEL = os.getenv("GEN_MODEL", "")
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "")
 LLM_MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "6"))
+# Optional per-role endpoints (e.g. generator on one provider, judge on another). Default: the LLM_* pair.
+GEN_BASE_URL = os.getenv("GEN_BASE_URL") or LLM_BASE_URL
+GEN_API_KEY = os.getenv("GEN_API_KEY") or LLM_API_KEY
+JUDGE_BASE_URL = os.getenv("JUDGE_BASE_URL") or LLM_BASE_URL
+JUDGE_API_KEY = os.getenv("JUDGE_API_KEY") or LLM_API_KEY
 DEVICE = os.getenv("DEVICE", "cpu")
+# minicheck (Flan-T5-Large: best, but ~3 min/question on CPU) | hhem (HHEM-2.1-Open: smaller, CPU-friendly)
+GROUNDING_MODEL = os.getenv("GROUNDING_MODEL", "minicheck")
 
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 RERANK_MODEL = "BAAI/bge-reranker-base"

@@ -132,14 +132,16 @@ async def _keep(q: TestQuestion, corpus_id: str, by_id: dict[str, Chunk]) -> Tes
 
 
 async def generate_questions(corpus_id: str, n_per_type: int = 2,
-                             types: list[str] | None = None) -> list[TestQuestion]:
-    """n_per_type = per chunk for answerable types, per document for unanswerable."""
+                             types: list[str] | None = None, merge: bool = False) -> list[TestQuestion]:
+    """n_per_type = per chunk for answerable types, per document for unanswerable.
+    merge=True adds the new questions to the saved set instead of replacing it."""
     types = types or ["single_hop", "numeric", "unanswerable"]
     chunks = indexer.build_index(corpus_id, *GEN_CHUNKING)
     by_id = {c.chunk_id: c for c in chunks}
     indexer.build_index(corpus_id, RagConfig().chunk_size, RagConfig().chunk_overlap)  # for unanswerable check
 
-    jobs = [_answerable_for_chunk(c, n_per_type, types) for c in chunks if c.start >= 0]
+    want_answerable = any(t in ANSWERABLE_TYPES for t in types)
+    jobs = [_answerable_for_chunk(c, n_per_type, types) for c in chunks if c.start >= 0 and want_answerable]
     if "unanswerable" in types:
         docs: dict[str, list[Chunk]] = {}
         for c in chunks:
@@ -152,8 +154,12 @@ async def generate_questions(corpus_id: str, n_per_type: int = 2,
     seen: set[str] = set()
     candidates = [q for q in candidates if not (q.qid in seen or seen.add(q.qid))]
 
+    existing = load_questions(corpus_id) if merge else []
+    have = {q.qid for q in existing}
+    candidates = [q for q in candidates if q.qid not in have]
     kept = [q for q in await asyncio.gather(*(_keep(q, corpus_id, by_id) for q in candidates)) if q]
     log.info("questions: %d candidates -> %d kept", len(candidates), len(kept))
+    kept = existing + kept
     save_questions(corpus_id, kept)
     return kept
 

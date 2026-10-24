@@ -20,7 +20,7 @@ def test_cache_counter_and_json_repair(monkeypatch, tmp_path):
     replies = iter(["oops not json", '{"ok": true}'])
     sent = []
 
-    async def fake_raw(model, messages, json_mode, temperature):
+    async def fake_raw(role, model, messages, json_mode, temperature):
         sent.append(messages)
         return next(replies)
 

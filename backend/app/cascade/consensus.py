@@ -64,6 +64,10 @@ def consensus(q: TestQuestion, results: list[LensResult], weights: dict[str, flo
     elif correct and grounded and verdict != "abstention":
         verdict, sub_cause = "ok", None
 
+    # Answering an unanswerable question is the root failure; any made-up content is its symptom.
+    if q.qtype == "unanswerable" and correct is False:
+        verdict, sub_cause = "abstention", "abstention_failure"
+
     if verdict == "generation" and not sub_cause:
         sub_cause = "misread_incomplete" if correct is False and grounded else "hallucination"
 

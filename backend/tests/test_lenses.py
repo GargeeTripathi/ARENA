@@ -149,9 +149,24 @@ def test_grounding_marks_sentences_and_best_chunk(monkeypatch):
     t = trace([7, 1, 2], k=2, answer="The fee is 2,500. It is waived on Sundays.")
     t.answer_sentences = ["The fee is 2,500.", "It is waived on Sundays."]
     # pairs: 2 claims x 2 chunks (c7, c1), then 2 claims x joined
-    monkeypatch.setattr(grounding, "_score", lambda pairs: ("fake", [0.9, 0.2, 0.1, 0.3, 0.85, 0.2]))
+    monkeypatch.setattr(grounding, "_score", lambda pairs: ("fake", [0.9, 0.2, 0.1, 0.3]))
     r = run(grounding, Q, t, ctx(["c7"], tier=2))
     s = r.evidence["sentences"]
     assert [x["supported"] for x in s] == [True, False]
     assert s[0]["best_chunk_id"] == "c7"
     assert (r.verdict, r.sub_cause) == ("generation", "hallucination")
+
+
+def test_grounding_windows_cover_long_chunks():
+    from app.lenses.grounding import _windows
+    ws = _windows(" ".join(f"w{i}" for i in range(1000)))
+    assert all(len(w.split()) <= 300 for w in ws)
+    assert ws[0].split()[0] == "w0" and ws[-1].split()[-1] == "w999"
+    assert _windows("short text") == ["short text"]
+
+
+def test_unanswerable_that_was_answered_is_abstention_failure():
+    rs = [lr("span_detector", "generation", 0.95, "hallucination"), lr("grounding", "generation", 0.9, "hallucination", tier=2),
+          lr("answer_check", "abstention", 0.85, "abstention_failure", correct=False)]
+    d = consensus(U, rs)
+    assert (d.verdict, d.sub_cause) == ("abstention", "abstention_failure")

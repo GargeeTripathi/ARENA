@@ -6,6 +6,7 @@ from functools import lru_cache
 
 from app import config
 from app.lenses.base import LensContext, in_context
+from app.llm import client
 from app.schemas import LensResult, RagTrace, TestQuestion
 
 NAME, TIER = "span_detector", 1
@@ -25,11 +26,11 @@ def detector():
 
 
 def _predict(contexts: list[str], question: str, answer: str) -> list[dict] | None:
-    det = detector()
-    if det is None:
-        return None
-    with _lock:
-        return det.predict(context=contexts, question=question, answer=answer, output_format="spans")
+    def infer():
+        with _lock:  # also guards the one-time model load (lru_cache isn't thread-safe)
+            det = detector()
+            return None if det is None else det.predict(context=contexts, question=question, answer=answer, output_format="spans")
+    return client.memo(MODEL, [contexts, question, answer], infer)
 
 
 async def run(q: TestQuestion, trace: RagTrace, ctx: LensContext) -> LensResult:

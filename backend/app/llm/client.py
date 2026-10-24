@@ -15,7 +15,7 @@ log = logging.getLogger("llm")
 
 _cache = diskcache.Cache(str(config.CACHE_DIR))
 _sem: asyncio.Semaphore | None = None
-_client = None
+_clients: dict = {}
 
 # Per-context call counter: wrap a lens in `counting()` to read its calls.
 _calls: contextvars.ContextVar[list[int] | None] = contextvars.ContextVar("llm_calls", default=None)
@@ -37,14 +37,14 @@ class counting:
         return self._box[0]
 
 
-def _get_client():
-    global _client
-    if _client is None:
+def _get_client(role: str):
+    if role not in _clients:
         from openai import AsyncOpenAI
-        if not config.LLM_API_KEY:
-            raise RuntimeError("LLM_API_KEY is not set (see .env.example)")
-        _client = AsyncOpenAI(base_url=config.LLM_BASE_URL, api_key=config.LLM_API_KEY, max_retries=2, timeout=120)
-    return _client
+        base, key = (config.GEN_BASE_URL, config.GEN_API_KEY) if role == "gen" else (config.JUDGE_BASE_URL, config.JUDGE_API_KEY)
+        if not key:
+            raise RuntimeError("LLM API key is not set (see .env.example)")
+        _clients[role] = AsyncOpenAI(base_url=base, api_key=key, max_retries=2, timeout=120)
+    return _clients[role]
 
 
 def _model(role: str) -> str:
@@ -66,7 +66,7 @@ def extract_json(text: str) -> dict:
     return json.loads(text[s : e + 1])
 
 
-async def _raw_call(model: str, messages: list[dict], json_mode: bool, temperature: float) -> str:
+async def _raw_call(role: str, model: str, messages: list[dict], json_mode: bool, temperature: float) -> str:
     """One chat call. The SDK retries 429/5xx/connection errors with exponential backoff and honours
     the provider's retry-after (free tiers reset token budgets per minute)."""
     global _sem
@@ -82,7 +82,7 @@ async def _raw_call(model: str, messages: list[dict], json_mode: bool, temperatu
     async with _sem:
         for attempt in range(12):
             try:
-                r = await _get_client().chat.completions.create(**kwargs)
+                r = await _get_client(role).chat.completions.create(**kwargs)
                 return r.choices[0].message.content or ""
             except BadRequestError:
                 if "response_format" not in kwargs:
@@ -111,7 +111,7 @@ async def complete(
         log.debug("cached %s", key[:8])
         return hit
 
-    out = await _raw_call(model, messages, json_mode, temperature)
+    out = await _raw_call(role, model, messages, json_mode, temperature)
     box = _calls.get()
     if box is not None:
         box[0] += 1
@@ -121,7 +121,7 @@ async def complete(
         except ValueError:  # one repair retry
             repair = [*messages, {"role": "assistant", "content": out},
                       {"role": "user", "content": "That was not valid JSON. Return only the JSON object."}]
-            out = await _raw_call(model, repair, json_mode, temperature)
+            out = await _raw_call(role, model, repair, json_mode, temperature)
             if box is not None:
                 box[0] += 1
             extract_json(out)  # still bad -> raise, don't cache garbage
@@ -131,3 +131,14 @@ async def complete(
 
 async def complete_json(role: Literal["gen", "judge"], messages: list[dict], temperature: float = 0.0) -> dict:
     return extract_json(await complete(role, messages, json_mode=True, temperature=temperature))
+
+
+def memo(namespace: str, payload, fn):
+    """Disk-cache any deterministic local computation (e.g. checker-model inference) by its inputs."""
+    key = namespace + ":" + hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+    hit = _cache.get(key)
+    if hit is None:
+        hit = fn()
+        if hit is not None:
+            _cache.set(key, hit)
+    return hit
