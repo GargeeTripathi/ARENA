@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from app import store
+from app import config, store
 from app.cascade.prescriptions import run_patch
 from app.cascade.runner import evaluate
 from app.generator.generate import generate_questions, load_questions
@@ -22,7 +22,12 @@ _tasks: set[asyncio.Task] = set()  # keep references so background runs aren't g
 # ---- corpus ------------------------------------------------------------------
 @router.post("/corpus")
 async def upload_corpus(files: list[UploadFile] = File(...)) -> dict:
+    if config.UPLOAD_MAX_FILES and len(files) > config.UPLOAD_MAX_FILES:
+        raise HTTPException(400, f"Upload at most {config.UPLOAD_MAX_FILES} files at a time.")
     data = [(f.filename or "file", await f.read()) for f in files]
+    total_mb = sum(len(b) for _, b in data) / 1e6
+    if config.UPLOAD_MAX_MB and total_mb > config.UPLOAD_MAX_MB:
+        raise HTTPException(400, f"Files total {total_mb:.1f} MB; the limit is {config.UPLOAD_MAX_MB:g} MB.")
     bad = [n for n, _ in data if not n.lower().endswith(tuple(indexer.SUPPORTED))]
     if bad:
         raise HTTPException(400, f"unsupported file type: {', '.join(bad)} (use pdf, docx, txt, md)")
@@ -39,7 +44,6 @@ async def upload_corpus(files: list[UploadFile] = File(...)) -> dict:
 @router.post("/corpus/demo")
 async def demo_corpus() -> dict:
     """One-click demo: load the bundled demo/ corpus."""
-    from app import config
     data = [(p.name, p.read_bytes()) for p in sorted(config.DEMO_DIR.iterdir()) if p.suffix in indexer.SUPPORTED]
     cid = indexer.create_corpus(data)
     cfg = RagConfig()
@@ -52,11 +56,35 @@ class QuestionsReq(BaseModel):
     types: list[str] = ["single_hop", "numeric", "unanswerable"]
 
 
-@router.post("/corpus/{corpus_id}/questions")
-async def make_questions(corpus_id: str, req: QuestionsReq) -> list[TestQuestion]:
+_gen: dict[str, dict] = {}  # corpus_id -> {"state": running|done|error, "error": str|None}
+
+
+@router.post("/corpus/{corpus_id}/questions", status_code=202)
+async def make_questions(corpus_id: str, req: QuestionsReq) -> dict:
+    """Starts question generation in the background (it takes minutes); poll .../questions/status."""
     if not indexer.corpus_dir(corpus_id).exists():
         raise HTTPException(404, "unknown corpus")
-    return await generate_questions(corpus_id, req.n_per_type, req.types)
+    if _gen.get(corpus_id, {}).get("state") == "running":
+        return _gen[corpus_id]
+    job = _gen[corpus_id] = {"state": "running", "error": None}
+
+    async def go() -> None:
+        try:
+            await generate_questions(corpus_id, req.n_per_type, req.types)
+            job["state"] = "done"
+        except Exception as e:
+            log.exception("question generation failed for %s", corpus_id)
+            job.update(state="error", error=str(e)[:300])
+
+    task = asyncio.create_task(go())
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
+    return job
+
+
+@router.get("/corpus/{corpus_id}/questions/status")
+def questions_status(corpus_id: str) -> dict:
+    return _gen.get(corpus_id) or {"state": "done" if load_questions(corpus_id) else "idle", "error": None}
 
 
 @router.get("/corpus/{corpus_id}")

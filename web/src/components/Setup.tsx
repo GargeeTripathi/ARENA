@@ -1,11 +1,9 @@
-import { Check, Database, ExternalLink, FileUp, Loader2, Play, Sparkles } from 'lucide-react'
-import { useRef, type ReactNode } from 'react'
+import { Check, Database, FileUp, Loader2, Play, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CorpusInfo, TestQuestion } from '../api'
 import { pretty } from '../api'
-import { STATIC } from '../api'
+import { STATIC, hostedBackend } from '../api'
 import { Button, Card, cx } from '../ui'
-
-const SETUP_GUIDE = 'https://github.com/GargeeTripathi/rag-autopsy#quick-start'
 
 export const PRESETS = {
   bad: { label: 'Seeded bad config', desc: '1024-word chunks, k = 3, dense only, basic prompt. Built to fail.' },
@@ -33,6 +31,9 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
   onUpload: (f: FileList) => void; onDemo: () => void; onGenerate: () => void; onRun: () => void
 }) {
   const file = useRef<HTMLInputElement>(null)
+  // Hosted site: is the live backend (uploads, new runs) reachable right now?
+  const [online, setOnline] = useState<boolean | null>(STATIC ? null : true)
+  useEffect(() => { if (STATIC) hostedBackend().then((b) => setOnline(!!b)) }, [])
   const byType = questions.reduce<Record<string, number>>((m, q) => ({ ...m, [q.qtype]: (m[q.qtype] ?? 0) + 1 }), {})
   const step = !corpus ? 1 : !questions.length ? 2 : 3
 
@@ -41,26 +42,24 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
       <Step n={1} title="Add documents" done={!!corpus} active={step === 1}>
         <p className="text-xs text-muted">PDF, Word, Markdown or text. We parse, chunk and index them.</p>
         {STATIC && (
-          <p className="mt-2 rounded-md bg-accent/10 px-2.5 py-2 text-[11px] leading-relaxed text-ink-2">
-            <b className="text-ink">This hosted demo is read-only.</b> Analysing your own documents needs the Python backend,
-            which runs the AI models and can't be hosted on Vercel. It runs on your own computer in a few minutes:
-            follow the <a href={SETUP_GUIDE} target="_blank" rel="noreferrer" className="font-semibold text-accent underline underline-offset-2">setup guide on GitHub</a>.
+          <p className={cx('mt-2 flex items-start gap-2 rounded-md px-2.5 py-2 text-[11px] leading-relaxed text-ink-2',
+            online ? 'bg-ok/10' : online === false ? 'bg-retrieval/10' : 'bg-subtle')}>
+            <span className={cx('mt-1 h-2 w-2 shrink-0 rounded-full', online ? 'bg-ok' : online === false ? 'bg-retrieval' : 'animate-pulse bg-faint')} />
+            <span>
+              {online === null && 'Checking the live backend…'}
+              {online && <><b className="text-ink">Live backend online.</b> Upload up to 3 files (2 MB total): PDF, Word, Markdown or text.</>}
+              {online === false && <><b className="text-ink">Live backend offline right now.</b> Uploads work while the team's server is running. Meanwhile, explore the demo corpus.</>}
+            </span>
           </p>
         )}
         {corpus && <p className="mt-2 text-xs text-ink-2"><b className="text-ink">{corpus.n_docs}</b> documents · <b className="text-ink">{corpus.n_chunks}</b> chunks indexed</p>}
         <input ref={file} type="file" multiple accept=".pdf,.docx,.txt,.md" className="hidden"
           onChange={(e) => e.target.files?.length && onUpload(e.target.files)} />
         <div className="mt-auto flex gap-2 pt-4">
-          {STATIC ? (
-            <a href={SETUP_GUIDE} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition hover:bg-subtle">
-              <ExternalLink className="h-4 w-4" />Use your own docs
-            </a>
-          ) : (
-            <Button onClick={() => file.current?.click()} disabled={!!busy}>
-              {busy === 'upload' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}Upload
-            </Button>
-          )}
+          <Button onClick={() => file.current?.click()} disabled={!!busy || online === false}
+            title={online === false ? 'The live backend is offline right now' : undefined}>
+            {busy === 'upload' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}Upload
+          </Button>
           <Button onClick={onDemo} disabled={!!busy} variant={corpus ? 'secondary' : 'primary'}>
             {busy === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}Use demo corpus
           </Button>
@@ -75,7 +74,7 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
           </div>
         )}
         <div className="mt-auto pt-4">
-          <Button onClick={onGenerate} disabled={STATIC || !corpus || !!busy} title={STATIC ? 'Needs the local backend' : undefined} variant={step === 2 ? 'primary' : 'secondary'}>
+          <Button onClick={onGenerate} disabled={!corpus || !!busy || online === false} variant={step === 2 ? 'primary' : 'secondary'}>
             {busy === 'generate' ? <><Loader2 className="h-4 w-4 animate-spin" />Generating (a few minutes)…</> : <><Sparkles className="h-4 w-4" />{questions.length ? 'Regenerate' : 'Generate questions'}</>}
           </Button>
         </div>
@@ -132,9 +131,9 @@ export function Hero({ onDemo, busy }: { onDemo: () => void; busy: string | null
             <Button variant="primary" onClick={onDemo} disabled={!!busy} className="px-5 py-2.5 text-sm">
               {busy === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}{STATIC ? 'Explore the live demo' : 'Try the demo corpus'}
             </Button>
-            <a href={STATIC ? SETUP_GUIDE : '#setup'} target={STATIC ? '_blank' : undefined} rel="noreferrer"
+            <a href="#setup"
               className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong px-5 py-2.5 text-sm font-medium text-ink-2 transition hover:border-accent/60 hover:text-ink">
-              Use my own documents{STATIC && <ExternalLink className="h-3.5 w-3.5" />}
+              Use my own documents
             </a>
           </div>
         </div>

@@ -111,7 +111,7 @@ export default function App() {
 
           {STATIC && (
             <span className="ml-3 hidden rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[11px] font-semibold text-accent sm:inline">
-              Live demo · read-only
+              Live demo
             </span>
           )}
           {corpus && (

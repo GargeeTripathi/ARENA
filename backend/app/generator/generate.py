@@ -9,6 +9,7 @@ import json
 import logging
 import re
 
+from app import config
 from app.generator import filters
 from app.generator.prompts import ANSWERABLE, GEN_SYSTEM, UNANSWERABLE
 from app.ingest import indexer
@@ -141,7 +142,11 @@ async def generate_questions(corpus_id: str, n_per_type: int = 2,
     indexer.build_index(corpus_id, RagConfig().chunk_size, RagConfig().chunk_overlap)  # for unanswerable check
 
     want_answerable = any(t in ANSWERABLE_TYPES for t in types)
-    jobs = [_answerable_for_chunk(c, n_per_type, types) for c in chunks if c.start >= 0 and want_answerable]
+    eligible = [c for c in chunks if c.start >= 0] if want_answerable else []
+    cap = config.GEN_MAX_CHUNKS
+    if cap and len(eligible) > cap:  # spread the sample evenly over the corpus
+        eligible = [eligible[round(i * (len(eligible) - 1) / (cap - 1))] for i in range(cap)] if cap > 1 else eligible[:1]
+    jobs = [_answerable_for_chunk(c, n_per_type, types) for c in eligible]
     if "unanswerable" in types:
         docs: dict[str, list[Chunk]] = {}
         for c in chunks:

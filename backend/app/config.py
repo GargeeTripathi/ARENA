@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]          # rag-autopsy/
-DATA = ROOT / "data"
+DATA = Path(os.getenv("RAG_DATA_DIR") or ROOT / "data")
 CHROMA_DIR = DATA / "chroma"
 CACHE_DIR = DATA / "cache"
 RUNS_DIR = DATA / "runs"
@@ -36,6 +36,11 @@ JUDGE_API_KEY = os.getenv("JUDGE_API_KEY") or LLM_API_KEY
 DEVICE = os.getenv("DEVICE", "cpu")
 # minicheck (Flan-T5-Large: best, but ~3 min/question on CPU) | hhem (HHEM-2.1-Open: smaller, CPU-friendly)
 GROUNDING_MODEL = os.getenv("GROUNDING_MODEL", "minicheck")
+
+# Public-hosting guards (0 = unlimited): keep a visitor's evaluation small enough for free LLM quotas.
+UPLOAD_MAX_FILES = int(os.getenv("UPLOAD_MAX_FILES", "0"))
+UPLOAD_MAX_MB = float(os.getenv("UPLOAD_MAX_MB", "0"))
+GEN_MAX_CHUNKS = int(os.getenv("GEN_MAX_CHUNKS", "0"))  # chunks used to write questions
 
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 RERANK_MODEL = "BAAI/bge-reranker-base"
