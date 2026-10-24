@@ -2,6 +2,9 @@
 
 **Find out *why* a RAG system gets answers wrong, not just *that* it does.**
 
+**Live demo:** https://rag-autopsy.vercel.app (read-only; best example: [a retrieval failure proven by counterfactual](https://rag-autopsy.vercel.app/?run=93234dfc0c&q=q_d142cc2b))  
+**Project guide:** [PROJECT_GUIDE.md](PROJECT_GUIDE.md) · **Slides:** [RAG_Autopsy_HYPNEXIS26.pptx](RAG_Autopsy_HYPNEXIS26.pptx)
+
 Upload documents → RAG Autopsy builds a baseline RAG over them, generates typed test questions (each tied to a known
 *gold* chunk), runs every question through the RAG under test, and diagnoses each answer with a three-tier cascade of
 "lenses". Every failure gets a **root cause** (retrieval / generation / abstention + sub-cause), a **confidence**, and a
