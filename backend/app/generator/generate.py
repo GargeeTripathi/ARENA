@@ -22,6 +22,15 @@ GEN_CHUNKING = (256, 32)
 ANSWERABLE_TYPES = ("single_hop", "numeric")
 
 
+def _items(r, where: str) -> list:
+    """Models return either {"questions": [...]} or a bare [...]; accept both, and say so if neither."""
+    items = r if isinstance(r, list) else r.get("questions") if isinstance(r, dict) else None
+    if not isinstance(items, list):
+        log.warning("no question list in model output for %s: %s", where, str(r)[:200])
+        return []
+    return items
+
+
 def _qid(text: str) -> str:
     return "q_" + hashlib.sha1(text.strip().lower().encode()).hexdigest()[:8]
 
@@ -79,7 +88,7 @@ async def _answerable_for_chunk(c: Chunk, n: int, types: list[str]) -> list[Test
         log.warning("generation failed for %s: %s", c.chunk_id, e)
         return []
     out = []
-    for item in r.get("questions", []) if isinstance(r, dict) else []:
+    for item in _items(r, c.chunk_id):
         if not isinstance(item, dict):
             continue
         qtype, question, answer = item.get("qtype"), str(item.get("question", "")).strip(), str(item.get("answer", "")).strip()
@@ -111,7 +120,8 @@ async def _unanswerable_for_doc(chunks: list[Chunk], n: int) -> list[TestQuestio
     except Exception as e:
         log.warning("unanswerable generation failed for %s: %s", c.doc_name, e)
         return []
-    qs = [str(x).strip() for x in (r.get("questions", []) if isinstance(r, dict) else []) if str(x).strip()]
+    qs = [str(x.get("question", "") if isinstance(x, dict) else x).strip() for x in _items(r, c.doc_name)]
+    qs = [q for q in qs if q]
     return [TestQuestion(qid=_qid(q), qtype="unanswerable", question=q, gold_answer=None, gold_chunk_ids=[])
             for q in qs[:n]]
 

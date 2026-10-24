@@ -58,8 +58,8 @@ def _model(role: str) -> str:
     return m
 
 
-def extract_json(text: str) -> dict:
-    """Tolerant JSON parse: first '{' to last '}'. Raises ValueError if hopeless."""
+def extract_json(text: str):
+    """Tolerant JSON parse (object or array): whole text, else first '{' to last '}'. Raises ValueError if hopeless."""
     try:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError):
@@ -136,7 +136,7 @@ async def complete(
     return out
 
 
-async def complete_json(role: Literal["gen", "judge"], messages: list[dict], temperature: float = 0.0) -> dict:
+async def complete_json(role: Literal["gen", "judge"], messages: list[dict], temperature: float = 0.0):
     return extract_json(await complete(role, messages, json_mode=True, temperature=temperature))
 
 
@@ -149,3 +149,11 @@ def memo(namespace: str, payload, fn):
         if hit is not None:
             _cache.set(key, hit)
     return hit
+
+
+async def complete_obj(role: Literal["gen", "judge"], messages: list[dict], temperature: float = 0.0) -> dict:
+    """complete_json for a single JSON object: unwraps a one-item list, and never returns a non-dict."""
+    r = await complete_json(role, messages, temperature)
+    if isinstance(r, list) and r and isinstance(r[0], dict):
+        r = r[0]
+    return r if isinstance(r, dict) else {}

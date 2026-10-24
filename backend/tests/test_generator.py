@@ -46,3 +46,12 @@ def test_abstention_detector():
     assert is_abstention("I don't know.")
     assert is_abstention("The context does not specify the warranty period.")
     assert not is_abstention("The warranty is 2 years.")
+
+
+
+def test_question_list_accepted_with_or_without_wrapper():
+    from app.generator.generate import _items
+    q = [{"qtype": "numeric", "question": "?", "answer": "1", "evidence": "x"}]
+    assert _items({"questions": q}, "c") == q
+    assert _items(q, "c") == q          # Gemini sometimes returns a bare list
+    assert _items({"other": 1}, "c") == [] and _items("junk", "c") == []

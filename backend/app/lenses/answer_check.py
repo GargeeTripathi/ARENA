@@ -22,7 +22,7 @@ def is_abstention(answer: str) -> bool:
 async def judge_correct(question: str, gold: str, answer: str) -> tuple[bool, str]:
     if is_abstention(answer):
         return False, "answer abstained"
-    r = await client.complete_json("judge", [{"role": "user", "content": CORRECTNESS.format(
+    r = await client.complete_obj("judge", [{"role": "user", "content": CORRECTNESS.format(
         question=question, gold=gold, answer=answer)}])
     return bool(r.get("correct")), str(r.get("reason", ""))
 

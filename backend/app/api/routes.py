@@ -37,8 +37,13 @@ async def upload_corpus(files: list[UploadFile] = File(...)) -> dict:
         chunks = await asyncio.to_thread(indexer.build_index, cid, cfg.chunk_size, cfg.chunk_overlap)
     except ParseError as e:
         raise HTTPException(400, str(e))
+    return _corpus_info(cid, chunks)
+
+
+def _corpus_info(cid: str, chunks) -> dict:
+    files = sorted(p.name for p in indexer.corpus_dir(cid).iterdir() if p.suffix.lower() in indexer.SUPPORTED and not p.name.startswith("_"))
     return {"corpus_id": cid, "n_docs": len({c.doc_id for c in chunks}), "n_chunks": len(chunks),
-            "n_questions": len(load_questions(cid))}
+            "n_questions": len(load_questions(cid)), "files": files}
 
 
 @router.post("/corpus/demo")
@@ -94,8 +99,7 @@ def corpus_info(corpus_id: str) -> dict:
         raise HTTPException(404, "unknown corpus")
     cfg = RagConfig()
     chunks = indexer.build_index(corpus_id, cfg.chunk_size, cfg.chunk_overlap)
-    return {"corpus_id": corpus_id, "n_docs": len({c.doc_id for c in chunks}), "n_chunks": len(chunks),
-            "n_questions": len(load_questions(corpus_id))}
+    return _corpus_info(corpus_id, chunks)
 
 
 @router.get("/corpus/{corpus_id}/questions")

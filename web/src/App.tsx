@@ -147,7 +147,7 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-[1440px] space-y-5 px-5 py-6">
-        {err && <div className="rounded-lg border border-generation/30 bg-generation/8 px-4 py-2.5 text-[13px] text-generation">{err}</div>}
+        {err && !showSetup && <div className="rounded-lg border border-generation/30 bg-generation/8 px-4 py-2.5 text-[13px] text-generation">{err}</div>}
         {run?.status === 'error' && <div className="rounded-lg border border-generation/30 bg-generation/8 px-4 py-2.5 text-[13px] text-generation">Run failed: {run.error}</div>}
 
         {showSetup ? (
@@ -161,7 +161,7 @@ export default function App() {
                 <Button variant="ghost" className="ml-auto" onClick={() => setSetup(false)}>Back to current run</Button>
               </div>
             )}
-            <Setup corpus={corpus} questions={questions} busy={busy} preset={preset} setPreset={setPreset}
+            <Setup corpus={corpus} questions={questions} busy={busy} error={err} preset={preset} setPreset={setPreset}
               onUpload={(f) => act('upload', async () => { await openCorpus(await api.upload(f)); setRun(null) })}
               onDemo={startDemo}
               onGenerate={() => act('generate', async () => setQuestions(await api.generate(corpus!.corpus_id)))}

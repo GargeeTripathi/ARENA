@@ -101,7 +101,7 @@ export interface Diff {
   config_after: RagConfig
 }
 
-export interface CorpusInfo { corpus_id: string; n_docs: number; n_chunks: number; n_questions: number }
+export interface CorpusInfo { corpus_id: string; n_docs: number; n_chunks: number; n_questions: number; files?: string[] }
 export interface RunSummary { run_id: string; corpus_id: string; config: RagConfig; status: string; parent_run_id: string | null; scorecards?: Partial<Scorecards> }
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
@@ -121,7 +121,7 @@ function makeLive(base: () => Promise<string>) {
   const post = async <T,>(p: string, body?: unknown) =>
     req<T>((await base()) + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) })
   return {
-    upload: async (files: FileList) => {
+    upload: async (files: File[] | FileList) => {
       const fd = new FormData()
       Array.from(files).forEach((f) => fd.append('files', f))
       return req<CorpusInfo>((await base()) + '/api/corpus', { method: 'POST', body: fd })

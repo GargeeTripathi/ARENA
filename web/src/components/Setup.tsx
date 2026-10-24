@@ -1,4 +1,4 @@
-import { Check, Database, FileUp, Loader2, Play, Sparkles } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Database, FileText, FileUp, Loader2, Play, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CorpusInfo, TestQuestion } from '../api'
 import { pretty } from '../api'
@@ -26,11 +26,22 @@ function Step({ n, title, done, active, children }: { n: number; title: string; 
   )
 }
 
-export default function Setup({ corpus, questions, busy, preset, setPreset, onUpload, onDemo, onGenerate, onRun }: {
-  corpus: CorpusInfo | null; questions: TestQuestion[]; busy: string | null; preset: Preset; setPreset: (p: Preset) => void
-  onUpload: (f: FileList) => void; onDemo: () => void; onGenerate: () => void; onRun: () => void
+export default function Setup({ corpus, questions, busy, error, preset, setPreset, onUpload, onDemo, onGenerate, onRun }: {
+  corpus: CorpusInfo | null; questions: TestQuestion[]; busy: string | null; error: string | null; preset: Preset; setPreset: (p: Preset) => void
+  onUpload: (f: File[]) => void; onDemo: () => void; onGenerate: () => void; onRun: () => void
 }) {
   const file = useRef<HTMLInputElement>(null)
+  const errRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (error) errRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [error])
+  // elapsed-time counter while a slow step (question generation) runs
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    if (busy !== 'generate') return
+    setSecs(0)
+    const t = setInterval(() => setSecs((s) => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [busy])
+  const elapsed = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   // Hosted site: is the live backend (uploads, new runs) reachable right now?
   const [online, setOnline] = useState<boolean | null>(STATIC ? null : true)
   useEffect(() => { if (STATIC) hostedBackend().then((b) => setOnline(!!b)) }, [])
@@ -38,6 +49,13 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
   const step = !corpus ? 1 : !questions.length ? 2 : 3
 
   return (
+    <div className="space-y-4">
+    {error && (
+      <div ref={errRef} role="alert" className="flex items-start gap-2.5 rounded-xl border border-generation/40 bg-generation/10 px-4 py-3 text-[13px] text-ink-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-generation" />
+        <span><b className="text-ink">That didn't work.</b> {error}</span>
+      </div>
+    )}
     <div className="grid gap-4 lg:grid-cols-3">
       <Step n={1} title="Add documents" done={!!corpus} active={step === 1}>
         <p className="text-xs text-muted">PDF, Word, Markdown or text. We parse, chunk and index them.</p>
@@ -52,9 +70,29 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
             </span>
           </p>
         )}
-        {corpus && <p className="mt-2 text-xs text-ink-2"><b className="text-ink">{corpus.n_docs}</b> documents · <b className="text-ink">{corpus.n_chunks}</b> chunks indexed</p>}
+        {busy === 'upload' && (
+          <p className="mt-2 flex items-center gap-2 text-xs text-ink-2"><Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />Uploading and indexing… (the first upload after a restart takes ~20 s)</p>
+        )}
+        {corpus && busy !== 'upload' && (
+          <div className="mt-2 rounded-md border border-ok/30 bg-ok/8 px-2.5 py-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-ink">
+              <CheckCircle2 className="h-3.5 w-3.5 text-ok" />
+              {corpus.files?.length && corpus.files.length <= 3 ? 'Ready' : `Ready: ${corpus.n_docs} documents`}
+              <span className="ml-auto font-normal text-muted">{corpus.n_chunks} chunks indexed</span>
+            </div>
+            {corpus.files && corpus.files.length <= 3 && (
+              <ul className="mt-1 space-y-0.5">
+                {corpus.files.map((f) => <li key={f} className="flex items-center gap-1.5 truncate text-[11px] text-ink-2"><FileText className="h-3 w-3 shrink-0 text-faint" />{f}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
         <input ref={file} type="file" multiple accept=".pdf,.docx,.txt,.md" className="hidden"
-          onChange={(e) => e.target.files?.length && onUpload(e.target.files)} />
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? [])
+            e.target.value = ''  // so choosing the same file again still triggers an upload
+            if (picked.length) onUpload(picked)
+          }} />
         <div className="mt-auto flex gap-2 pt-4">
           <Button onClick={() => file.current?.click()} disabled={!!busy || online === false}
             title={online === false ? 'The live backend is offline right now' : undefined}>
@@ -73,9 +111,10 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
             {Object.entries(byType).map(([t, n]) => <span key={t} className="rounded-md bg-subtle px-2 py-0.5 text-[11px] text-ink-2"><b>{n}</b> {pretty(t)}</span>)}
           </div>
         )}
+        {busy === 'generate' && <p className="mt-2 text-[11px] text-muted">An LLM reads each chunk and writes questions, then a second model checks every one. Usually 1–3 minutes.</p>}
         <div className="mt-auto pt-4">
           <Button onClick={onGenerate} disabled={!corpus || !!busy || online === false} variant={step === 2 ? 'primary' : 'secondary'}>
-            {busy === 'generate' ? <><Loader2 className="h-4 w-4 animate-spin" />Generating (a few minutes)…</> : <><Sparkles className="h-4 w-4" />{questions.length ? 'Regenerate' : 'Generate questions'}</>}
+            {busy === 'generate' ? <><Loader2 className="h-4 w-4 animate-spin" />Writing questions… {elapsed}</> : <><Sparkles className="h-4 w-4" />{questions.length ? 'Regenerate' : 'Generate questions'}</>}
           </Button>
         </div>
       </Step>
@@ -97,6 +136,7 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
           </Button>
         </div>
       </Step>
+    </div>
     </div>
   )
 }

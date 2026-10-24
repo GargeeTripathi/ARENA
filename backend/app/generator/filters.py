@@ -32,7 +32,7 @@ def dedup(questions: list[str], threshold: float = 0.9) -> list[int]:
 
 async def answerable(question: str, passages: list[str]) -> bool:
     text = "\n\n".join(f"[{i + 1}] {p}" for i, p in enumerate(passages)) or "(none)"
-    r = await client.complete_json("judge", [{"role": "user", "content": ANSWERABILITY.format(
+    r = await client.complete_obj("judge", [{"role": "user", "content": ANSWERABILITY.format(
         question=question, passages=text)}])
     return bool(r.get("answerable"))
 

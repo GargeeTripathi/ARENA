@@ -29,7 +29,7 @@ async def run(q: TestQuestion, trace: RagTrace, ctx: LensContext) -> LensResult:
         words += n
     truncated = len(chunks) < len(in_context(trace))
     passages = "\n\n".join(f"[{i + 1}] {t}" for i, t in enumerate(chunks)) or "(no passages)"
-    r = await client.complete_json("judge", [{"role": "user", "content": PROMPT.format(
+    r = await client.complete_obj("judge", [{"role": "user", "content": PROMPT.format(
         question=q.question, passages=passages)}])
     sufficient = bool(r.get("sufficient"))
     ev = {"sufficient": sufficient, "reason": str(r.get("reason", "")),

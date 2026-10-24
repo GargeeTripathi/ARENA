@@ -39,7 +39,8 @@ export default function PrescriptionRail({ run, onOpenRun }: { run: Run; onOpenR
     return (
       <Card className="flex items-center gap-3 border-ok/30 bg-ok/5 py-3">
         <FlaskConical className="h-4 w-4 text-ok" />
-        <span className="text-[13px] text-ink-2"><b className="text-ink">No failures to fix.</b> Every question was answered correctly and grounded.</span>
+        <span className="text-[13px] text-ink-2"><b className="text-ink">No failures to fix.</b> Every question was answered correctly and grounded.
+          {run.questions.length > 0 && <span className="text-muted"> Tip: a short document fits entirely into the model's context (k = {run.config.k} chunks), so retrieval can't miss. Upload a longer document, several pages or a few files, to see real failures and their autopsies.</span>}</span>
       </Card>
     )
   }
