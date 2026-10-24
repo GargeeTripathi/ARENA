@@ -12,3 +12,4 @@ sentence-transformers
 rank_bm25
 numpy
 pytest
+python-multipart

@@ -25,6 +25,8 @@ class TestQuestion(BaseModel):
     gold_answer: str | None  # None for unanswerable
     gold_chunk_ids: list[str]  # empty for unanswerable
     closed_book_correct: bool | None = None
+    evidence: str | None = None  # exact supporting quote from the gold chunk
+    gold_span: dict | None = None  # {doc_id, page, start, end}: re-finds gold chunks under any chunk_size
 
 
 class RagConfig(BaseModel):
