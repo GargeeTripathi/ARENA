@@ -81,17 +81,25 @@ export default function App() {
   const showSetup = setup || !run
   const ThemeIcon = theme === 'dark' ? Sun : Moon
 
+  const goHome = () => { // back to the start page; the run stays reachable from the run picker
+    setRun(null); setSetup(false); setSelected(null); setErr(null)
+    try { localStorage.removeItem('run') } catch { /* storage blocked */ }
+    if (location.search) history.replaceState(null, '', location.pathname)
+    window.scrollTo({ top: 0 })
+  }
+
   return (
     <div className="min-h-full">
       <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-5">
-          <div className="flex items-center gap-2.5">
+          <button onClick={goHome} title="Home" aria-label="RAG Autopsy home"
+            className="flex items-center gap-2.5 rounded-lg text-left transition hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand shadow-glow"><Stethoscope className="h-4 w-4 text-white" /></div>
             <div className="leading-tight">
               <div className="font-display text-[15px] font-bold tracking-tight text-ink">RAG <span className="text-brand">Autopsy</span></div>
               <div className="text-[10px] text-faint">Why your RAG gets answers wrong</div>
             </div>
-          </div>
+          </button>
 
           {STATIC && (
             <span className="ml-3 hidden rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[11px] font-semibold text-accent sm:inline">
