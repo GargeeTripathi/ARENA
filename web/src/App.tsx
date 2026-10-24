@@ -1,4 +1,4 @@
-import { Activity, Loader2, Monitor, Moon, Plus, Stethoscope, Sun } from 'lucide-react'
+import { Activity, Loader2, Moon, Plus, Stethoscope, Sun } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { CorpusInfo, Cost, Run, RunSummary, Scorecards, TestQuestion } from './api'
 import { BAD_CONFIG, DEFAULT_CONFIG, api } from './api'
@@ -6,23 +6,17 @@ import AutopsyView from './components/AutopsyView'
 import FailureList from './components/FailureList'
 import HealthStrip from './components/HealthStrip'
 import PrescriptionRail from './components/PrescriptionRail'
-import Setup, { type Preset } from './components/Setup'
+import Setup, { Hero, type Preset } from './components/Setup'
 import { Button, Empty, Meter, Tag } from './ui'
 
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* storage blocked */ } }
 const load = (k: string) => { try { return localStorage.getItem(k) } catch { return null } }
 
-type Theme = 'system' | 'light' | 'dark'
+type Theme = 'light' | 'dark'
 function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(() => (load('theme') as Theme) || 'system')
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const apply = () => document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'system' && mq.matches))
-    apply()
-    mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
-  }, [theme])
-  const next = () => setTheme((t) => { const n: Theme = t === 'system' ? 'light' : t === 'light' ? 'dark' : 'system'; save('theme', n); return n })
+  const [theme, setTheme] = useState<Theme>(() => (load('theme') === 'light' ? 'light' : 'dark'))  // dark is the house style
+  useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark') }, [theme])
+  const next = () => setTheme((t) => { const n: Theme = t === 'dark' ? 'light' : 'dark'; save('theme', n); return n })
   return [theme, next]
 }
 
@@ -74,16 +68,16 @@ export default function App() {
   const sc = run && 'accuracy' in run.scorecards ? (run.scorecards as Scorecards) : undefined
   const cost = run && 'avg_llm_calls' in run.cost ? (run.cost as Cost) : undefined
   const showSetup = setup || !run
-  const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor
+  const ThemeIcon = theme === 'dark' ? Sun : Moon
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-5">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent"><Stethoscope className="h-4 w-4 text-accent-ink" /></div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand shadow-glow"><Stethoscope className="h-4 w-4 text-white" /></div>
             <div className="leading-tight">
-              <div className="text-[14px] font-semibold tracking-tight text-ink">RAG Autopsy</div>
+              <div className="font-display text-[15px] font-bold tracking-tight text-ink">RAG <span className="text-brand">Autopsy</span></div>
               <div className="text-[10px] text-faint">Why your RAG gets answers wrong</div>
             </div>
           </div>
@@ -108,7 +102,7 @@ export default function App() {
             <Button onClick={() => setSetup(true)} variant={showSetup ? 'secondary' : 'primary'} disabled={showSetup}>
               <Plus className="h-4 w-4" />New evaluation
             </Button>
-            <Button variant="ghost" onClick={cycleTheme} title={`Theme: ${theme}`} className="px-2"><ThemeIcon className="h-4 w-4" /></Button>
+            <Button variant="ghost" onClick={cycleTheme} title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} className="px-2"><ThemeIcon className="h-4 w-4" /></Button>
           </div>
         </div>
         {run?.status === 'running' && (
@@ -126,13 +120,15 @@ export default function App() {
 
         {showSetup ? (
           <section>
-            <div className="mb-4 flex items-end gap-3">
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight text-ink">Set up an evaluation</h1>
-                <p className="mt-1 text-[13px] text-muted">Three steps: give us documents, we write test questions with known answers, then we diagnose every failure.</p>
+            {!run ? <Hero onDemo={() => act('demo', async () => { await openCorpus(await api.demo()); setRun(null) })} busy={busy} /> : (
+              <div className="mb-5 flex items-end gap-3">
+                <div>
+                  <h1 className="text-2xl font-bold text-ink">New <span className="text-brand">evaluation</span></h1>
+                  <p className="mt-1 text-[13px] text-muted">Give us documents, we write test questions with known answers, then we diagnose every failure.</p>
+                </div>
+                <Button variant="ghost" className="ml-auto" onClick={() => setSetup(false)}>Back to current run</Button>
               </div>
-              {run && <Button variant="ghost" className="ml-auto" onClick={() => setSetup(false)}>Back to current run</Button>}
-            </div>
+            )}
             <Setup corpus={corpus} questions={questions} busy={busy} preset={preset} setPreset={setPreset}
               onUpload={(f) => act('upload', async () => { await openCorpus(await api.upload(f)); setRun(null) })}
               onDemo={() => act('demo', async () => { await openCorpus(await api.demo()); setRun(null) })}
@@ -142,7 +138,7 @@ export default function App() {
         ) : run && (
           <>
             <section className="flex flex-wrap items-center gap-2">
-              <h1 className="mr-2 text-xl font-semibold tracking-tight text-ink">{run.parent_run_id ? 'Re-test run' : 'Evaluation run'}</h1>
+              <h1 className="mr-2 text-2xl font-bold text-ink">{run.parent_run_id ? 'Re-test' : 'Evaluation'} <span className="text-brand">run</span></h1>
               <Tag className="font-mono">{run.config.chunk_size}-word chunks</Tag>
               <Tag className="font-mono">k = {run.config.k}</Tag>
               <Tag className="font-mono">{run.config.retrieval}{run.config.rerank ? ' + rerank' : ''}</Tag>

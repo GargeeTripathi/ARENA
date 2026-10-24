@@ -21,14 +21,19 @@ const CAUSE_FAMILY: Record<string, Verdict> = {
 }
 export const causeFamily = (c: string): Verdict => CAUSE_FAMILY[c] ?? 'uncertain'
 
-export function Card({ children, className, pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
-  return <div className={cx('rounded-xl border border-line bg-surface', pad && 'p-4', className)}>{children}</div>
+export function Card({ children, className, pad = true, hover }: { children: ReactNode; className?: string; pad?: boolean; hover?: boolean }) {
+  return (
+    <div className={cx('rounded-xl border border-line bg-surface', pad && 'p-4',
+      hover && 'transition hover:border-accent/40 hover:shadow-glow', className)}>
+      {children}
+    </div>
+  )
 }
 
 export function SectionTitle({ children, hint, right }: { children: ReactNode; hint?: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-3 flex items-baseline gap-2">
-      <h3 className="text-[13px] font-semibold text-ink">{children}</h3>
+      <h3 className="font-display text-[14px] font-semibold text-ink">{children}</h3>
       {hint && <span className="text-xs text-muted">{hint}</span>}
       {right && <div className="ml-auto">{right}</div>}
     </div>
@@ -57,7 +62,7 @@ export function Button({ children, onClick, disabled, variant = 'secondary', cla
     <button onClick={onClick} disabled={disabled} title={title}
       className={cx('inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50',
-        variant === 'primary' && 'bg-accent text-accent-ink shadow-sm hover:opacity-90',
+        variant === 'primary' && 'bg-brand text-white shadow-glow hover:brightness-110',
         variant === 'secondary' && 'border border-line bg-surface text-ink-2 hover:bg-subtle',
         variant === 'ghost' && 'text-muted hover:bg-subtle hover:text-ink',
         className)}>

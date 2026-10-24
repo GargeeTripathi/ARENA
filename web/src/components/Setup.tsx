@@ -12,13 +12,13 @@ export type Preset = keyof typeof PRESETS
 
 function Step({ n, title, done, active, children }: { n: number; title: string; done: boolean; active: boolean; children: ReactNode }) {
   return (
-    <Card className={cx('flex flex-col', active && 'border-accent/50 ring-1 ring-accent/20', !done && !active && 'opacity-60')}>
+    <Card hover className={cx('flex flex-col', active && 'border-accent/50 shadow-glow', !done && !active && 'opacity-60')}>
       <div className="flex items-center gap-2.5">
         <span className={cx('flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
-          done ? 'bg-ok text-white' : active ? 'bg-accent text-accent-ink' : 'bg-subtle text-muted')}>
+          done ? 'bg-ok text-white' : active ? 'bg-brand text-white' : 'bg-subtle text-muted')}>
           {done ? <Check className="h-3.5 w-3.5" /> : n}
         </span>
-        <span className="text-sm font-semibold text-ink">{title}</span>
+        <span className="font-display text-[15px] font-semibold text-ink">{title}</span>
       </div>
       <div className="mt-3 flex flex-1 flex-col">{children}</div>
     </Card>
@@ -81,6 +81,55 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
           </Button>
         </div>
       </Step>
+    </div>
+  )
+}
+
+const STATS = [
+  { value: '6', label: 'diagnostic lenses' },
+  { value: '3', label: 'cascade tiers, LLM only when needed' },
+  { value: 'Top-50', label: 'ranked chunks traced per question' },
+  { value: '1-click', label: 'prescribed fix & re-test' },
+]
+
+/** Landing hero shown before any run exists. */
+export function Hero({ onDemo, busy }: { onDemo: () => void; busy: string | null }) {
+  return (
+    <div className="mb-8">
+      <div className="relative overflow-hidden rounded-2xl border border-line bg-surface px-8 py-12 md:px-12">
+        <div className="pointer-events-none absolute -left-24 -top-32 h-96 w-96" style={{ background: "radial-gradient(circle, color-mix(in srgb, var(--accent) 28%, transparent), transparent 65%)" }} />
+        <div className="pointer-events-none absolute -bottom-40 -right-10 h-96 w-[32rem]" style={{ background: "radial-gradient(ellipse, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 65%)" }} />
+        <div className="relative max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent-2" />RAG evaluation with root causes
+          </div>
+          <h1 className="mt-5 text-4xl font-extrabold leading-[1.1] text-ink md:text-5xl">
+            Find out <span className="text-brand">why</span> your RAG<br />gets answers wrong.
+          </h1>
+          <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-muted">
+            We generate test questions from your own documents, run them through your RAG, and diagnose every failure:
+            retrieval, hallucination or a missing "I don't know". Retrieval failures are <b className="text-ink-2">proven</b>, not
+            guessed: we swap the right chunk back in and re-ask the same model.
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Button variant="primary" onClick={onDemo} disabled={!!busy} className="px-5 py-2.5 text-sm">
+              {busy === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}Try the demo corpus
+            </Button>
+            <a href="#setup" className="inline-flex items-center rounded-lg border border-line-strong px-5 py-2.5 text-sm font-medium text-ink-2 transition hover:border-accent/60 hover:text-ink">
+              Use my own documents
+            </a>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {STATS.map((s) => (
+          <Card key={s.label} hover className="tile-corner py-5 text-center">
+            <div className="font-display text-3xl font-bold text-brand">{s.value}</div>
+            <div className="mt-1 text-xs text-muted">{s.label}</div>
+          </Card>
+        ))}
+      </div>
+      <h2 id="setup" className="mt-10 text-xl font-bold text-ink">Get started in <span className="text-brand">three steps</span></h2>
     </div>
   )
 }

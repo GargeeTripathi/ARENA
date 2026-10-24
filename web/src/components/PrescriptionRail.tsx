@@ -2,7 +2,7 @@ import { ArrowRight, FlaskConical, Loader2, Wand2, X } from 'lucide-react'
 import { useState } from 'react'
 import type { Diff, Run } from '../api'
 import { api, pretty } from '../api'
-import { Button, Card, Meter, cx } from '../ui'
+import { Button, Card, cx } from '../ui'
 import { METRICS, ScoreCard } from './HealthStrip'
 
 /** Run-level "Recommended fix" banner: what to change, one click to re-test, then before/after. */
@@ -45,39 +45,44 @@ export default function PrescriptionRail({ run, onOpenRun }: { run: Run; onOpenR
   }
 
   return (
-    <Card className="border-accent/25 p-0">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
-        <div className="flex min-w-[260px] flex-1 items-start gap-3">
-          <div className="rounded-lg bg-accent/10 p-2"><Wand2 className="h-4 w-4 text-accent" /></div>
+    <div className="space-y-4">
+    <div className="relative overflow-hidden rounded-xl bg-brand text-white shadow-glow">
+      <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72" style={{ background: "radial-gradient(circle, rgb(255 255 255 / 0.16), transparent 65%)" }} />
+      <div className="relative flex flex-wrap items-center gap-x-8 gap-y-4 p-5">
+        <div className="flex min-w-[280px] flex-1 items-start gap-3.5">
+          <div className="rounded-xl bg-white/15 p-2.5 ring-1 ring-white/25"><Wand2 className="h-5 w-5" /></div>
           <div>
-            <div className="text-[13px] font-semibold text-ink">Recommended fix for {failures} failing question{failures === 1 ? '' : 's'}</div>
-            <ul className="mt-1 space-y-0.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Recommended fix</div>
+            <div className="font-display text-[17px] font-semibold">{failures} failing question{failures === 1 ? '' : 's'}, {p.sentences.length} root cause{p.sentences.length === 1 ? '' : 's'}</div>
+            <ul className="mt-1.5 space-y-0.5">
               {p.sentences.map((s) => {
                 const [cause, ...rest] = s.split(': ')
-                return <li key={s} className="text-xs text-muted"><span className="font-medium text-ink-2">{pretty(cause)}</span>: {rest.join(': ')}</li>
+                return <li key={s} className="text-xs text-white/80"><span className="font-semibold text-white">{pretty(cause)}</span>: {rest.join(': ')}</li>
               })}
             </ul>
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(patch).map(([k, v]) => (
-            <span key={k} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-2 py-1 font-mono text-[11px]">
-              <span className="text-muted">{k}</span>
-              <span className="text-faint line-through">{String((run.config as any)[k])}</span>
-              <ArrowRight className="h-3 w-3 text-faint" />
-              <span className="font-semibold text-accent">{String(v)}</span>
+            <span key={k} className="inline-flex items-center gap-1.5 rounded-lg bg-white/12 px-2.5 py-1.5 font-mono text-[11px] ring-1 ring-white/20">
+              <span className="text-white/70">{k}</span>
+              <span className="text-white/50 line-through">{String((run.config as any)[k])}</span>
+              <ArrowRight className="h-3 w-3 text-white/60" />
+              <span className="font-semibold text-white">{String(v)}</span>
             </span>
           ))}
         </div>
-        <Button variant="primary" onClick={apply} disabled={busy || !Object.keys(patch).length} className="px-4 py-2">
+        <button onClick={apply} disabled={busy || !Object.keys(patch).length}
+          className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-[13px] font-semibold text-[#1556e0] shadow-lg transition hover:bg-white/90 disabled:opacity-70">
           {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Re-testing {progress.done}/{progress.total || failures}</> : <><FlaskConical className="h-4 w-4" />Apply & re-test</>}
-        </Button>
+        </button>
       </div>
-      {busy && <Meter value={progress.total ? progress.done / progress.total : 0.03} className="mx-4 mb-4" />}
-      {err && <p className="px-4 pb-4 text-xs text-generation">{err}</p>}
+      {busy && <div className="relative mx-5 mb-5 h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${(progress.total ? progress.done / progress.total : 0.03) * 100}%` }} /></div>}
+      {err && <p className="relative px-5 pb-4 text-xs text-white">{err}</p>}
+    </div>
 
       {diff && (
-        <div className="border-t border-line bg-canvas/60 p-4">
+        <Card className="shadow-glow">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-semibold text-ink">Before → after</span>
             <span className="text-xs text-muted">on the {diff.d.rows.length} questions that failed</span>
@@ -95,8 +100,8 @@ export default function PrescriptionRail({ run, onOpenRun }: { run: Run; onOpenR
                 hint={`was ${diff.d.before[m.key].value?.toFixed(2) ?? '—'}`} />
             ))}
           </div>
-        </div>
+        </Card>
       )}
-    </Card>
+    </div>
   )
 }

@@ -17,13 +17,13 @@ export function ScoreCard({ label, hint, Icon, s, delta, compact }: {
   const v = s?.value ?? null
   const tone = scoreTone(v)
   return (
-    <Card className={cx('relative overflow-hidden', compact && 'p-3')}>
+    <Card hover className={cx('tile-corner', compact && 'p-3')}>
       <div className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-muted" title={hint}>
         <Icon className="h-4 w-4 shrink-0" style={{ color: tone.color }} />
         <span className="truncate">{label}</span>
       </div>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className={cx('font-semibold tabular-nums tracking-tight text-ink', compact ? 'text-xl' : 'text-[28px] leading-none')}>
+        <span className={cx('font-display font-bold tabular-nums tracking-tight text-ink', compact ? 'text-xl' : 'text-[30px] leading-none')}>
           {v === null ? '—' : v.toFixed(2)}
         </span>
         {s && v !== null && s.lo !== null && s.hi !== null && (
@@ -55,10 +55,10 @@ export function CauseBreakdown({ causes }: { causes: Record<string, number> }) {
   const ok = causes.ok ?? 0
   const nFail = failures.reduce((a, [, n]) => a + n, 0)
   return (
-    <Card>
+    <Card hover className="tile-corner">
       <div className="text-xs font-medium text-muted">Diagnosis</div>
       <div className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap">
-        <span className="text-[28px] font-semibold leading-none tabular-nums tracking-tight text-ink">{nFail}</span>
+        <span className="font-display text-[30px] font-bold leading-none tabular-nums tracking-tight text-ink">{nFail}</span>
         <span className="text-xs text-muted">failing of {total}</span>
       </div>
       <div className="mt-3 flex h-2.5 gap-0.5 overflow-hidden rounded-full">

@@ -11,12 +11,12 @@ const TIERS = [
 export default function CostCounter({ cost }: { cost?: Cost }) {
   const pct = cost?.resolved_pct ?? {}
   return (
-    <Card>
+    <Card hover className="tile-corner">
       <div className="flex items-center gap-2 text-xs font-medium text-muted">
         <Zap className="h-4 w-4 text-accent" /> LLM cost
       </div>
       <div className="mt-2 flex items-baseline gap-1.5 whitespace-nowrap">
-        <span className="text-[28px] font-semibold leading-none tabular-nums tracking-tight text-ink">{cost?.avg_llm_calls ?? '—'}</span>
+        <span className="font-display text-[30px] font-bold leading-none tabular-nums tracking-tight text-brand">{cost?.avg_llm_calls ?? '—'}</span>
         <span className="text-xs text-muted">calls / question</span>
       </div>
       <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-subtle">

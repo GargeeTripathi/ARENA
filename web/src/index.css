@@ -5,6 +5,7 @@
 /* Semantic tokens. Components only use these names, so light/dark is one switch. */
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-canvas: var(--canvas);
@@ -17,6 +18,7 @@
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --color-accent-ink: var(--accent-ink);
 
   /* verdict palette: one hue per root-cause family */
@@ -28,17 +30,20 @@
 }
 
 :root {
-  --canvas: #f6f7f9;
+  --canvas: #f4f7fb;
   --surface: #ffffff;
-  --subtle: #f1f3f6;
-  --line: #e5e7eb;
-  --line-strong: #d1d5db;
-  --ink: #111827;
-  --ink-2: #374151;
-  --muted: #6b7280;
-  --faint: #9ca3af;
-  --accent: #4f46e5;
+  --subtle: #eef2f8;
+  --line: #dfe5ee;
+  --line-strong: #c8d1de;
+  --ink: #0b1220;
+  --ink-2: #2b3648;
+  --muted: #5b6678;
+  --faint: #8a94a6;
+  --accent: #1667ff;
+  --accent-2: #06b6d4;
   --accent-ink: #ffffff;
+  --brand: linear-gradient(120deg, #1667ff 0%, #0ea5e9 55%, #22d3ee 100%);
+  --glow: 0 0 0 1px rgb(22 103 255 / 0.10), 0 8px 30px -12px rgb(22 103 255 / 0.25);
 
   --ok: #059669;
   --retrieval: #d97706;
@@ -48,18 +53,22 @@
   color-scheme: light;
 }
 
+/* Default look: near-black canvas, electric blue -> cyan brand. */
 .dark {
-  --canvas: #0b0d12;
-  --surface: #12151c;
-  --subtle: #1a1e27;
-  --line: #242a35;
-  --line-strong: #333a47;
-  --ink: #e6e8ec;
-  --ink-2: #c3c8d1;
-  --muted: #8b93a1;
-  --faint: #5f6775;
-  --accent: #818cf8;
-  --accent-ink: #0b0d12;
+  --canvas: #04060b;
+  --surface: #0a0e17;
+  --subtle: #111827;
+  --line: #172033;
+  --line-strong: #24314a;
+  --ink: #eef3ff;
+  --ink-2: #c4cee2;
+  --muted: #8592ab;
+  --faint: #56627a;
+  --accent: #2f7bff;
+  --accent-2: #22d3ee;
+  --accent-ink: #ffffff;
+  --brand: linear-gradient(120deg, #1f6bff 0%, #1aa3ff 50%, #22d3ee 100%);
+  --glow: 0 0 0 1px rgb(47 123 255 / 0.18), 0 10px 40px -12px rgb(47 123 255 / 0.45);
 
   --ok: #34d399;
   --retrieval: #fbbf24;
@@ -74,9 +83,54 @@ body {
   @apply bg-canvas text-ink antialiased;
   font-size: 14px;
   font-feature-settings: "cv11", "ss01";
+  /* faint tech grid + blue glow behind everything */
+  background-image:
+    radial-gradient(ellipse 60% 40% at 15% -5%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 95% 0%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 70%),
+    linear-gradient(color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px);
+  background-size: auto, auto, 44px 44px, 44px 44px;
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
 }
 
-::selection { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+h1, h2, .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+@utility text-brand {
+  background: var(--brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility bg-brand { background: var(--brand); }
+@utility shadow-glow { box-shadow: var(--glow); }
+
+/* stat tile with the glowing diagonal blue corner */
+@utility tile-corner {
+  position: relative;
+  overflow: hidden;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto auto;
+    width: 56px;
+    height: 56px;
+    background: var(--brand);
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto auto;
+    width: 160px;
+    height: 160px;
+    background: radial-gradient(circle at 100% 0, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+}
+
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 
 /* quiet scrollbars */
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
