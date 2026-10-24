@@ -1,0 +1,14 @@
+# torch: install CPU wheel first (see README)
+fastapi
+uvicorn[standard]
+pydantic>=2
+openai
+diskcache
+pymupdf
+pdfplumber
+python-docx
+chromadb
+sentence-transformers
+rank_bm25
+numpy
+pytest
