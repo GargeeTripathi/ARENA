@@ -55,7 +55,7 @@ export interface Scorecards {
   root_causes: Record<string, number>
   verdicts: Record<string, number>
 }
-export interface Cost { questions: number; total_llm_calls: number; avg_llm_calls: number; resolved_pct: Record<string, number>; total_ms: number }
+export interface Cost { questions: number; total_llm_calls: number; avg_llm_calls: number; billed_llm_calls?: number; cached_llm_calls?: number; resolved_pct: Record<string, number>; total_ms: number }
 
 export interface Run {
   run_id: string

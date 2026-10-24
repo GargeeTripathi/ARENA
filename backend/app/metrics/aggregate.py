@@ -67,10 +67,13 @@ def cost(diagnoses: list[Diagnosis], wall_ms: int | None = None) -> dict:
     n = len(diagnoses) or 1
     tiers = Counter(d.max_tier_reached for d in diagnoses)
     calls = sum(d.total_llm_calls for d in diagnoses)
+    cached = sum(d.total_cached_calls for d in diagnoses)
     return {
         "questions": len(diagnoses),
         "total_llm_calls": calls,
-        "avg_llm_calls": round(calls / n, 2),
+        "avg_llm_calls": round((calls + cached) / n, 2),  # what the cascade needs per question
+        "billed_llm_calls": calls,  # actually sent to the provider (the rest came from cache)
+        "cached_llm_calls": cached,
         "resolved_pct": {t: round(100 * tiers.get(t, 0) / n, 1) for t in (1, 2, 3)},
         "total_ms": wall_ms if wall_ms is not None else sum(d.total_latency_ms for d in diagnoses),
     }

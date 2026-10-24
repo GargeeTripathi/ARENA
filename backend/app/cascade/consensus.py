@@ -74,9 +74,12 @@ def consensus(q: TestQuestion, results: list[LensResult], weights: dict[str, flo
     g, s = by.get("grounding"), by.get("span_detector")
     disagree = bool(g and s and g.confidence >= 0.7 and s.confidence >= 0.7 and g.verdict != s.verdict
                     and "uncertain" not in (g.verdict, s.verdict))
+    # An "unanswerable" test question whose answer is fully grounded may be mislabelled: ask a human.
+    suspect_label = q.qtype == "unanswerable" and bool(g) and g.verdict == "ok" and g.confidence >= 0.8
     return Diagnosis(
         qid=q.qid, verdict=verdict, sub_cause=sub_cause, confidence=round(confidence, 3),
-        needs_review=confidence < 0.6 or disagree, lens_results=results,
+        needs_review=confidence < 0.6 or disagree or suspect_label, lens_results=results,
         max_tier_reached=max((r.tier for r in results), default=1), prescription=None,
-        total_llm_calls=sum(r.llm_calls for r in results), total_latency_ms=sum(r.latency_ms for r in results),
+        total_llm_calls=sum(r.llm_calls for r in results), total_cached_calls=sum(r.cached_calls for r in results),
+        total_latency_ms=sum(r.latency_ms for r in results),
     )

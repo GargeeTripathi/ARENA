@@ -14,6 +14,11 @@ export default function CostCounter({ cost }: { cost?: Cost }) {
         <span className="text-2xl font-semibold tabular-nums text-slate-800">{cost?.avg_llm_calls ?? '—'}</span>
         <span className="text-xs text-slate-400">LLM calls / question</span>
       </div>
+      {cost?.cached_llm_calls != null && (
+        <div className="text-[11px] text-slate-400 tabular-nums">
+          {cost.billed_llm_calls} billed · {cost.cached_llm_calls} from cache
+        </div>
+      )}
       <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-slate-100">
         {[1, 2, 3].map((t, i) => (
           <div key={t} className={TIER_COLOR[i]} style={{ width: `${pct[t] ?? 0}%` }} />

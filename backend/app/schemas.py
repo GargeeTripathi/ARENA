@@ -69,7 +69,8 @@ class LensResult(BaseModel):
     sub_cause: str | None = None
     confidence: float  # 0..1
     evidence: dict = Field(default_factory=dict)
-    llm_calls: int = 0
+    llm_calls: int = 0  # real (billed) calls; cache hits count 0
+    cached_calls: int = 0  # calls answered from the disk cache
     latency_ms: int = 0
 
 
@@ -83,6 +84,7 @@ class Diagnosis(BaseModel):
     max_tier_reached: int
     prescription: str | None
     total_llm_calls: int
+    total_cached_calls: int = 0
     total_latency_ms: int
 
 

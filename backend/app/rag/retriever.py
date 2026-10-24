@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from app import config
 from app.ingest import indexer
+from app.llm import client
 from app.schemas import Chunk, RagConfig, RetrievedChunk
 
 
@@ -48,8 +49,12 @@ def retrieve(question: str, corpus_id: str, cfg: RagConfig) -> list[RetrievedChu
     if cfg.retrieval == "hybrid":
         ranked = _rrf(ranked, _bm25(question, corpus_id, cfg, chunks, n))[:n]
     if cfg.rerank and ranked:
-        with _lock:  # one load + one predict at a time (retrieval runs in worker threads)
-            scores = reranker().predict([(question, by_id[cid].text) for cid, _ in ranked])
+        pairs = [(question, by_id[cid].text) for cid, _ in ranked]
+
+        def score():
+            with _lock:  # one load + one predict at a time (retrieval runs in worker threads)
+                return [float(x) for x in reranker().predict(pairs)]
+        scores = client.memo(config.RERANK_MODEL, pairs, score)  # deterministic: ~5 s/question on CPU otherwise
         ranked = sorted(zip([c for c, _ in ranked], map(float, scores)), key=lambda x: -x[1])
 
     return [

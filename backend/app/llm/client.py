@@ -25,7 +25,7 @@ class counting:
     """`with counting() as c: ...; c.n` -> real (non-cached) LLM calls made inside."""
 
     def __enter__(self):
-        self._box = [0]
+        self._box = [0, 0]  # [real calls, cache hits]
         self._tok = _calls.set(self._box)
         return self
 
@@ -35,6 +35,10 @@ class counting:
     @property
     def n(self) -> int:
         return self._box[0]
+
+    @property
+    def cached(self) -> int:
+        return self._box[1]
 
 
 def _get_client(role: str):
@@ -109,6 +113,9 @@ async def complete(
     hit = _cache.get(key)
     if hit is not None:
         log.debug("cached %s", key[:8])
+        box = _calls.get()
+        if box is not None:
+            box[1] += 1
         return hit
 
     out = await _raw_call(role, model, messages, json_mode, temperature)

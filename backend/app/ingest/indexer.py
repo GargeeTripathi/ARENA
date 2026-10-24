@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import re
+import threading
 from functools import lru_cache
 from pathlib import Path
 
@@ -16,10 +17,18 @@ SUPPORTED = {".pdf", ".docx", ".txt", ".md"}
 BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 
+_init_lock = threading.Lock()  # retrieval runs in worker threads; create shared clients exactly once
+
+
 @lru_cache(maxsize=1)
-def embedder():
+def _embedder():
     from sentence_transformers import SentenceTransformer
     return SentenceTransformer(config.EMBED_MODEL, device=config.DEVICE)
+
+
+def embedder():
+    with _init_lock:
+        return _embedder()
 
 
 def embed(texts: list[str], query: bool = False) -> list[list[float]]:
@@ -29,9 +38,14 @@ def embed(texts: list[str], query: bool = False) -> list[list[float]]:
 
 
 @lru_cache(maxsize=1)
-def chroma():
+def _chroma():
     import chromadb
     return chromadb.PersistentClient(path=str(config.CHROMA_DIR))
+
+
+def chroma():
+    with _init_lock:
+        return _chroma()
 
 
 def corpus_dir(corpus_id: str) -> Path:

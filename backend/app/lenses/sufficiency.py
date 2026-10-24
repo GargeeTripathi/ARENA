@@ -16,12 +16,24 @@ Passages:
 Return JSON: {{"sufficient": true or false, "reason": "one short sentence"}}"""
 
 
+MAX_WORDS = 4000  # ponytail: keeps one judge call under small providers' per-request token caps
+
+
 async def run(q: TestQuestion, trace: RagTrace, ctx: LensContext) -> LensResult:
-    passages = "\n\n".join(f"[{i + 1}] {c.text}" for i, c in enumerate(in_context(trace))) or "(no passages)"
+    chunks, words = [], 0
+    for c in in_context(trace):  # highest-ranked first
+        n = len(c.text.split())
+        if chunks and words + n > MAX_WORDS:
+            break
+        chunks.append(c.text)
+        words += n
+    truncated = len(chunks) < len(in_context(trace))
+    passages = "\n\n".join(f"[{i + 1}] {t}" for i, t in enumerate(chunks)) or "(no passages)"
     r = await client.complete_json("judge", [{"role": "user", "content": PROMPT.format(
         question=q.question, passages=passages)}])
     sufficient = bool(r.get("sufficient"))
-    ev = {"sufficient": sufficient, "reason": str(r.get("reason", ""))}
+    ev = {"sufficient": sufficient, "reason": str(r.get("reason", "")),
+          "passages_judged": len(chunks), "truncated": truncated}
 
     def res(verdict, conf, sub=None):
         return LensResult(lens=NAME, tier=TIER, verdict=verdict, sub_cause=sub, confidence=conf, evidence=ev)

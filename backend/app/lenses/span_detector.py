@@ -25,12 +25,51 @@ def detector():
         return None
 
 
+GROUP_WORDS = 2400  # ~3.3k tokens: a group plus prompt fits the detector's 4k window
+
+
+def _groups(contexts: list[str]) -> list[list[str]]:
+    groups, cur, n = [], [], 0
+    for c in contexts:
+        w = len(c.split())
+        if cur and n + w > GROUP_WORDS:
+            groups.append(cur)
+            cur, n = [], 0
+        cur.append(c)
+        n += w
+    return groups + [cur] if cur else groups
+
+
+def _min_merge(answer: str, per_group: list[list[dict]]) -> list[dict]:
+    """A character is hallucinated only if EVERY context group flags it (support from any chunk is enough).
+    LettuceDetect's own long-context mode does the opposite (max), flagging answers one group can't see."""
+    prob = [min(max((s["confidence"] for s in spans if s["start"] <= i < s["end"]), default=0.0) for spans in per_group)
+            for i in range(len(answer))]
+    out, i = [], 0
+    while i < len(answer):
+        if prob[i] > 0:
+            j = i
+            while j < len(answer) and prob[j] > 0:
+                j += 1
+            out.append({"start": i, "end": j, "text": answer[i:j], "confidence": max(prob[i:j])})
+            i = j
+        else:
+            i += 1
+    return out
+
+
 def _predict(contexts: list[str], question: str, answer: str) -> list[dict] | None:
     def infer():
         with _lock:  # also guards the one-time model load (lru_cache isn't thread-safe)
             det = detector()
-            return None if det is None else det.predict(context=contexts, question=question, answer=answer, output_format="spans")
-    return client.memo(MODEL, [contexts, question, answer], infer)
+            if det is None:
+                return None
+            groups = _groups(contexts)
+            if len(groups) == 1:
+                return det.predict(context=contexts, question=question, answer=answer, output_format="spans")
+            per = [det.predict(context=g, question=question, answer=answer, output_format="spans") for g in groups]
+            return _min_merge(answer, per)
+    return client.memo(MODEL + ":v2", [contexts, question, answer], infer)
 
 
 async def run(q: TestQuestion, trace: RagTrace, ctx: LensContext) -> LensResult:

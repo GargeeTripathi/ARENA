@@ -170,3 +170,20 @@ def test_unanswerable_that_was_answered_is_abstention_failure():
           lr("answer_check", "abstention", 0.85, "abstention_failure", correct=False)]
     d = consensus(U, rs)
     assert (d.verdict, d.sub_cause) == ("abstention", "abstention_failure")
+
+
+def test_span_merge_needs_every_group_to_flag():
+    from app.lenses.span_detector import _groups, _min_merge
+    ans = "The fee is INR 500."
+    # group A flags the whole answer (it can't see the evidence); group B flags nothing -> supported
+    assert _min_merge(ans, [[{"start": 0, "end": len(ans), "confidence": 0.99}], []]) == []
+    # both groups flag "500": that part stays flagged, with the weaker of the two scores
+    both = _min_merge(ans, [[{"start": 15, "end": 18, "confidence": 0.9}], [{"start": 11, "end": 18, "confidence": 0.7}]])
+    assert both == [{"start": 15, "end": 18, "text": "500", "confidence": 0.7}]
+    assert len(_groups(["w " * 2000, "w " * 2000, "w " * 100])) == 2
+
+
+def test_unanswerable_with_grounded_answer_is_flagged_for_review():
+    rs = [lr("answer_check", "abstention", 0.85, "abstention_failure", correct=False),
+          lr("grounding", "ok", 0.8, tier=2)]
+    assert consensus(U, rs).needs_review

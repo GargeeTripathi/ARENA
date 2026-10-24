@@ -38,5 +38,6 @@ async def execute(lens: ModuleType, q: TestQuestion, trace: RagTrace, ctx: LensC
             r = LensResult(lens=lens.NAME, tier=ctx.tier, verdict="uncertain", confidence=0.0,
                            evidence={"error": str(e)[:300]})
     r.llm_calls = c.n
+    r.cached_calls = c.cached
     r.latency_ms = int((time.perf_counter() - t) * 1000)
     return r
