@@ -1,9 +1,13 @@
 """dense / hybrid (dense+BM25 via RRF) / optional cross-encoder rerank. Always top-50 with ranks."""
+import threading
 from functools import lru_cache
 
 from app import config
 from app.ingest import indexer
 from app.schemas import Chunk, RagConfig, RetrievedChunk
+
+
+_lock = threading.Lock()
 
 
 @lru_cache(maxsize=1)
@@ -44,7 +48,8 @@ def retrieve(question: str, corpus_id: str, cfg: RagConfig) -> list[RetrievedChu
     if cfg.retrieval == "hybrid":
         ranked = _rrf(ranked, _bm25(question, corpus_id, cfg, chunks, n))[:n]
     if cfg.rerank and ranked:
-        scores = reranker().predict([(question, by_id[cid].text) for cid, _ in ranked])
+        with _lock:  # one load + one predict at a time (retrieval runs in worker threads)
+            scores = reranker().predict([(question, by_id[cid].text) for cid, _ in ranked])
         ranked = sorted(zip([c for c, _ in ranked], map(float, scores)), key=lambda x: -x[1])
 
     return [

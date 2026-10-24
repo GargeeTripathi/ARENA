@@ -35,15 +35,22 @@ npm run dev                      # http://localhost:5173
 In the browser: **Demo corpus** → **Generate questions** → pick **Seeded bad config** → **Run evaluation** → click a
 failure to see its autopsy → **Apply & re-test**.
 
-Example `.env` (Groq):
+Example `.env`: generator on Google Gemini, judge on Groq. Two providers keep the judge independent of the
+model it grades, and both have free tiers:
 ```
-LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_BASE_URL=https://api.groq.com/openai/v1        # judge (and default for both roles)
 LLM_API_KEY=gsk_...
-GEN_MODEL=openai/gpt-oss-20b
-JUDGE_MODEL=qwen/qwen3.8-27b
-LLM_MAX_CONCURRENCY=4
+JUDGE_MODEL=openai/gpt-oss-120b
+GEN_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+GEN_API_KEY=...
+GEN_MODEL=gemini-3.5-flash-lite
+LLM_MAX_CONCURRENCY=3
 DEVICE=cpu
+GROUNDING_MODEL=hhem      # minicheck = Flan-T5-Large (best, wants a GPU); hhem = HHEM-2.1-Open (CPU-friendly)
 ```
+
+Free tiers have per-minute and per-day token caps; the client waits out "try again in Xs" responses, and every LLM
+call and checker-model inference is disk-cached, so a run only ever pays once.
 
 CLI checks (from `backend/`): `pytest`, `scripts/smoke_rag.py`, `scripts/gen_questions.py`, `scripts/run_eval.py [--bad]`.
 
