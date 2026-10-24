@@ -43,7 +43,7 @@ def main() -> None:
         for f in ("Dockerfile", "constraints.txt", "preload.py", "README.md"):
             shutil.copy(HERE / f, stage / f)
         api.upload_folder(repo_id=repo, repo_type="space", folder_path=str(stage),
-                          commit_message="Deploy RAG Autopsy backend")
+                          commit_message="Deploy ARENA backend")
     print(f"pushed: https://huggingface.co/spaces/{repo}")
 
 

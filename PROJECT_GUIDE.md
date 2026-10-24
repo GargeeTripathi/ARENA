@@ -1,4 +1,4 @@
-# RAG Autopsy: Project Guide
+# ARENA (Automated Retrieval & Evaluation Nexus Architecture): Project Guide
 
 How the project works, file by file, plus the numbers to quote and answers to the questions judges are likely to ask.
 
@@ -7,7 +7,7 @@ How the project works, file by file, plus the numbers to quote and answers to th
 ## 1. The idea in one paragraph
 
 Most RAG evaluation tools give you a score: "accuracy 0.71". They tell you **that** answers are wrong, not **why**.
-RAG Autopsy diagnoses every wrong answer and names the root cause:
+ARENA diagnoses every wrong answer and names the root cause:
 
 - **Retrieval failure**: the right text never reached the model (ranked too low, not found, or cut in half by chunking).
 - **Generation failure**: the right text was there, but the model invented things or misread it.

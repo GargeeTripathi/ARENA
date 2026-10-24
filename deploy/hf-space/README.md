@@ -1,5 +1,5 @@
 ---
-title: RAG Autopsy API
+title: ARENA API
 emoji: 🩺
 colorFrom: blue
 colorTo: indigo
@@ -9,9 +9,9 @@ pinned: false
 short_description: Backend for rag-autopsy.vercel.app
 ---
 
-# RAG Autopsy: backend API
+# ARENA: backend API
 
-This Space runs the Python backend for **[RAG Autopsy](https://rag-autopsy.vercel.app)**: document ingest,
+This Space runs the Python backend for **[ARENA](https://rag-autopsy.vercel.app)** (Automated Retrieval & Evaluation Nexus Architecture): document ingest,
 test-question generation, the RAG under test and the 3-tier diagnostic cascade.
 The dashboard at rag-autopsy.vercel.app calls it when visitors upload their own documents.
 

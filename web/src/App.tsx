@@ -100,11 +100,11 @@ export default function App() {
     <div className="min-h-full">
       <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-5">
-          <button onClick={goHome} title="Home" aria-label="RAG Autopsy home"
+          <button onClick={goHome} title="Home" aria-label="ARENA home"
             className="flex items-center gap-2.5 rounded-lg text-left transition hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand shadow-glow"><Stethoscope className="h-4 w-4 text-white" /></div>
             <div className="leading-tight">
-              <div className="font-display text-[15px] font-bold tracking-tight text-ink">RAG <span className="text-brand">Autopsy</span></div>
+              <div className="font-display text-[15px] font-bold tracking-tight text-ink"><span className="text-brand">ARENA</span></div>
               <div className="text-[10px] text-faint">Why your RAG gets answers wrong</div>
             </div>
           </button>

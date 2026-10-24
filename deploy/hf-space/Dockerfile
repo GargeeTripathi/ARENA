@@ -1,4 +1,4 @@
-# RAG Autopsy backend for a Hugging Face Docker Space (CPU, 16 GB free tier).
+# ARENA backend for a Hugging Face Docker Space (CPU, 16 GB free tier).
 FROM python:3.11-slim
 
 ENV PIP_NO_CACHE_DIR=1 \

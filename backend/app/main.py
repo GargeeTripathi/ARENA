@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 for noisy in ("httpx", "chromadb", "sentence_transformers"):
     logging.getLogger(noisy).setLevel(logging.WARNING)
 
-app = FastAPI(title="RAG Autopsy")
+app = FastAPI(title="ARENA")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
 

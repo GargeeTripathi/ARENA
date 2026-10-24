@@ -249,7 +249,7 @@ def report(run_id: str) -> str:
     run = _run_or_404(run_id)
     qs = {q.qid: q for q in load_questions(run["corpus_id"])}
     sc, cost = run["scorecards"], run["cost"]
-    lines = [f"# RAG Autopsy report: run `{run_id}`", "", f"Config: `{run['config']}`", "", "## Scorecards", "",
+    lines = [f"# ARENA report: run `{run_id}`", "", f"Config: `{run['config']}`", "", "## Scorecards", "",
              "| Metric | Value | 95% CI | n |", "|---|---|---|---|"]
     for k in ("context_relevance", "faithfulness", "accuracy", "abstention"):
         s = sc.get(k) or {}
