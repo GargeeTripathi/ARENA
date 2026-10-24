@@ -80,7 +80,7 @@ rag-autopsy/
 │   │   ├── metrics/           aggregate.py  (scorecards + confidence intervals + cost)
 │   │   └── api/routes.py      HTTP endpoints for the dashboard
 │   ├── scripts/               smoke_rag.py, gen_questions.py, run_eval.py, prewarm_demo.py
-│   └── tests/                 24 unit tests (LLM always mocked)
+│   └── tests/                 25 unit tests (LLM always mocked)
 └── web/                   React + Vite + Tailwind dashboard
     └── src/
         ├── api.ts             types + API calls
