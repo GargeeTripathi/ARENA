@@ -1,14 +1,15 @@
 import type { LensResult, RagTrace } from '../api'
+import { Card, SectionTitle, cx } from '../ui'
 
 type Span = { start: number; end: number; text: string; prob: number }
 type Sent = { text: string; supported: boolean; score: number | null; best_chunk_id: string | null }
 
-/** Split [start,end) of the answer into plain / hallucinated-span segments. */
+/** Split [start,end) of the answer into plain / flagged-span segments. */
 function segments(answer: string, start: number, end: number, spans: Span[]) {
-  const cuts = spans.filter((s) => s.prob > 0.5 && s.start < end && s.end > start)
+  const cuts = spans.filter((s) => s.prob > 0.5 && s.start < end && s.end > start).sort((a, b) => a.start - b.start)
   const out: { text: string; bad: boolean; prob?: number }[] = []
   let pos = start
-  for (const s of cuts.sort((a, b) => a.start - b.start)) {
+  for (const s of cuts) {
     const a = Math.max(s.start, pos), b = Math.min(s.end, end)
     if (a > pos) out.push({ text: answer.slice(pos, a), bad: false })
     if (b > a) out.push({ text: answer.slice(a, b), bad: true, prob: s.prob })
@@ -16,6 +17,10 @@ function segments(answer: string, start: number, end: number, spans: Span[]) {
   }
   if (pos < end) out.push({ text: answer.slice(pos, end), bad: false })
   return out
+}
+
+function Legend({ swatch, label }: { swatch: string; label: string }) {
+  return <span className="inline-flex items-center gap-1.5 text-[11px] text-muted"><span className={cx('h-2.5 w-2.5 rounded-sm', swatch)} />{label}</span>
 }
 
 export default function AnswerPanel({ trace, lenses, onHover }: {
@@ -27,36 +32,31 @@ export default function AnswerPanel({ trace, lenses, onHover }: {
   const placed = trace.answer_sentences.map((s, i) => {
     const start = Math.max(trace.answer.indexOf(s, pos), 0)
     pos = start + s.length
-    return { s, i, start, end: start + s.length, g: sents?.[i] }
+    return { i, start, end: start + s.length, g: sents?.[i] }
   })
 
   return (
-    <div className="flex min-h-0 flex-col">
-      <div className="mb-2 flex items-center gap-3 text-xs font-semibold text-slate-500">
-        RAG answer
-        <span className="flex items-center gap-1 font-normal text-slate-400"><span className="h-2 w-2 rounded-sm bg-emerald-200" />supported</span>
-        <span className="flex items-center gap-1 font-normal text-slate-400"><span className="h-2 w-2 rounded-sm bg-rose-200" />unsupported</span>
-        <span className="flex items-center gap-1 font-normal text-slate-400"><span className="border-b-2 border-rose-500 px-1 text-[10px]">abc</span>flagged span</span>
-      </div>
-      <div className="rounded-lg bg-white p-3 text-sm leading-7 ring-1 ring-slate-200">
+    <Card>
+      <SectionTitle hint="hover a sentence to see the chunk that supports it"
+        right={<div className="flex gap-3"><Legend swatch="bg-ok/25" label="supported" /><Legend swatch="bg-generation/25" label="unsupported" />
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted"><span className="border-b-2 border-generation px-0.5 text-[10px] leading-none">ab</span>flagged span</span></div>}>
+        What the RAG answered
+      </SectionTitle>
+      <div className="rounded-lg bg-canvas px-4 py-3 text-[14px] leading-7 text-ink">
         {placed.map(({ i, start, end, g }) => (
-          <span
-            key={i}
-            onMouseEnter={() => onHover(g?.best_chunk_id ?? null)}
-            onMouseLeave={() => onHover(null)}
-            title={g ? `${g.supported ? 'supported' : 'NOT supported'}${g.score != null ? ` (score ${g.score})` : ''}${g.best_chunk_id ? ` · best chunk ${g.best_chunk_id}` : ''}` : undefined}
-            className={`rounded px-0.5 ${g ? (g.supported ? 'bg-emerald-100/80 hover:bg-emerald-200' : 'bg-rose-100 hover:bg-rose-200') : ''}`}
-          >
-            {segments(trace.answer, start, end, spans).map((seg, j) =>
-              seg.bad
-                ? <mark key={j} className="bg-transparent border-b-2 border-rose-500 text-rose-700" title={`hallucination p=${seg.prob}`}>{seg.text}</mark>
-                : <span key={j}>{seg.text}</span>)}
+          <span key={i}
+            onMouseEnter={() => onHover(g?.best_chunk_id ?? null)} onMouseLeave={() => onHover(null)}
+            title={g ? `${g.supported ? 'Supported' : 'Not supported'}${g.score != null ? ` · score ${g.score}` : ''}${g.best_chunk_id ? ` · best chunk ${g.best_chunk_id}` : ''}` : undefined}
+            className={cx('rounded px-0.5 transition-colors', g && (g.supported ? 'bg-ok/12 hover:bg-ok/25' : 'bg-generation/12 hover:bg-generation/25'))}>
+            {segments(trace.answer, start, end, spans).map((seg, j) => seg.bad
+              ? <mark key={j} className="border-b-2 border-generation bg-transparent text-generation" title={`flagged, p=${seg.prob}`}>{seg.text}</mark>
+              : <span key={j}>{seg.text}</span>)}
             {' '}
           </span>
         ))}
-        {!trace.answer && <span className="text-slate-400">(empty answer)</span>}
+        {!trace.answer && <span className="text-faint">(empty answer)</span>}
       </div>
-      {!sents && <p className="mt-1.5 text-[11px] text-slate-400">Sentence grounding not needed for this question (resolved before Tier 2).</p>}
-    </div>
+      {!sents && <p className="mt-2 text-[11px] text-faint">Sentence-level grounding wasn't needed: the cheap Tier 1 checks settled this question.</p>}
+    </Card>
   )
 }

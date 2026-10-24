@@ -1,20 +1,20 @@
-import { ArrowRight, CheckCircle2, FileSearch, FlaskConical, Loader2, Pill, ShieldCheck, Target, Wrench } from 'lucide-react'
+import { ArrowRight, FlaskConical, Loader2, Wand2, X } from 'lucide-react'
 import { useState } from 'react'
-import type { Diagnosis, Diff, Run } from '../api'
+import type { Diff, Run } from '../api'
 import { api, pretty } from '../api'
-import { ScoreCard } from './HealthStrip'
+import { Button, Card, Meter, cx } from '../ui'
+import { METRICS, ScoreCard } from './HealthStrip'
 
-const ICONS = { context_relevance: FileSearch, faithfulness: ShieldCheck, accuracy: Target, abstention: CheckCircle2 } as const
-
-export default function PrescriptionRail({ run, selected, onOpenRun }: {
-  run: Run; selected?: Diagnosis; onOpenRun: (id: string) => void
-}) {
+/** Run-level "Recommended fix" banner: what to change, one click to re-test, then before/after. */
+export default function PrescriptionRail({ run, onOpenRun }: { run: Run; onOpenRun: (id: string) => void }) {
   const [busy, setBusy] = useState(false)
-  const [progress, setProgress] = useState<string>('')
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [diff, setDiff] = useState<{ id: string; d: Diff } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const p = run.prescription
-  const patch = p?.patch ?? {}
+  if (run.status !== 'done' || !p) return null
+  const patch = p.patch ?? {}
+  const failures = run.diagnoses.filter((d) => d.verdict !== 'ok').length
 
   async function apply() {
     setBusy(true); setErr(null); setDiff(null)
@@ -22,7 +22,7 @@ export default function PrescriptionRail({ run, selected, onOpenRun }: {
       const { run_id } = await api.fix(run.run_id)
       for (;;) {
         const r = await api.run(run_id)
-        setProgress(`${r.progress.done}/${r.progress.total}`)
+        setProgress(r.progress)
         if (r.status === 'error') throw new Error(r.error ?? 'run failed')
         if (r.status === 'done') break
         await new Promise((ok) => setTimeout(ok, 1500))
@@ -35,66 +35,68 @@ export default function PrescriptionRail({ run, selected, onOpenRun }: {
     }
   }
 
-  return (
-    <div className="space-y-3">
-      {selected?.prescription && (
-        <div className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Pill className="h-3.5 w-3.5 text-indigo-500" />This question</div>
-          <p className="text-xs leading-relaxed text-slate-600">{selected.prescription}</p>
-        </div>
-      )}
+  if (!p.sentences.length) {
+    return (
+      <Card className="flex items-center gap-3 border-ok/30 bg-ok/5 py-3">
+        <FlaskConical className="h-4 w-4 text-ok" />
+        <span className="text-[13px] text-ink-2"><b className="text-ink">No failures to fix.</b> Every question was answered correctly and grounded.</span>
+      </Card>
+    )
+  }
 
-      <div className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Wrench className="h-3.5 w-3.5 text-indigo-500" />Prescription for this run</div>
-        {run.status !== 'done' ? <p className="text-xs text-slate-400">Available when the run finishes.</p>
-          : !p?.sentences.length ? <p className="text-xs text-emerald-600">No failures to fix.</p>
-          : (
-            <>
-              <ul className="space-y-1.5 text-xs leading-relaxed text-slate-600">
-                {p.sentences.map((s) => {
-                  const [cause, ...rest] = s.split(': ')
-                  return <li key={s}><b className="text-slate-700">{pretty(cause)}</b>: {rest.join(': ')}</li>
-                })}
-              </ul>
-              <div className="mt-2.5 space-y-1">
-                {Object.entries(patch).map(([k, v]) => (
-                  <div key={k} className="flex items-center gap-1.5 rounded-md bg-slate-50 px-2 py-1 font-mono text-[11px]">
-                    <span className="text-slate-500">{k}</span>
-                    <span className="ml-auto text-slate-400 line-through">{String((run.config as any)[k])}</span>
-                    <ArrowRight className="h-3 w-3 text-slate-400" />
-                    <span className="font-semibold text-indigo-700">{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={apply} disabled={busy || !Object.keys(patch).length}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Re-testing {progress}</> : <><FlaskConical className="h-4 w-4" /> Apply &amp; re-test</>}
-              </button>
-              {err && <p className="mt-2 text-xs text-rose-600">{err}</p>}
-            </>
-          )}
+  return (
+    <Card className="border-accent/25 p-0">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+        <div className="flex min-w-[260px] flex-1 items-start gap-3">
+          <div className="rounded-lg bg-accent/10 p-2"><Wand2 className="h-4 w-4 text-accent" /></div>
+          <div>
+            <div className="text-[13px] font-semibold text-ink">Recommended fix for {failures} failing question{failures === 1 ? '' : 's'}</div>
+            <ul className="mt-1 space-y-0.5">
+              {p.sentences.map((s) => {
+                const [cause, ...rest] = s.split(': ')
+                return <li key={s} className="text-xs text-muted"><span className="font-medium text-ink-2">{pretty(cause)}</span>: {rest.join(': ')}</li>
+              })}
+            </ul>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(patch).map(([k, v]) => (
+            <span key={k} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-2 py-1 font-mono text-[11px]">
+              <span className="text-muted">{k}</span>
+              <span className="text-faint line-through">{String((run.config as any)[k])}</span>
+              <ArrowRight className="h-3 w-3 text-faint" />
+              <span className="font-semibold text-accent">{String(v)}</span>
+            </span>
+          ))}
+        </div>
+        <Button variant="primary" onClick={apply} disabled={busy || !Object.keys(patch).length} className="px-4 py-2">
+          {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Re-testing {progress.done}/{progress.total || failures}</> : <><FlaskConical className="h-4 w-4" />Apply & re-test</>}
+        </Button>
       </div>
+      {busy && <Meter value={progress.total ? progress.done / progress.total : 0.03} className="mx-4 mb-4" />}
+      {err && <p className="px-4 pb-4 text-xs text-generation">{err}</p>}
 
       {diff && (
-        <div className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-          <div className="mb-2 text-xs font-semibold text-slate-500">Before → after <span className="font-normal text-slate-400">on the {diff.d.rows.length} failed questions</span></div>
-          <div className="mb-2 flex gap-1.5 text-[11px] font-semibold">
-            <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700">{diff.d.counts.fixed} fixed</span>
-            <span className="rounded bg-rose-50 px-2 py-0.5 text-rose-700">{diff.d.counts.broken} broken</span>
-            <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-600">{diff.d.counts.unchanged} unchanged</span>
+        <div className="border-t border-line bg-canvas/60 p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold text-ink">Before → after</span>
+            <span className="text-xs text-muted">on the {diff.d.rows.length} questions that failed</span>
+            <span className="rounded-full bg-ok/12 px-2 py-0.5 text-[11px] font-semibold text-ok">{diff.d.counts.fixed} fixed</span>
+            <span className={cx('rounded-full px-2 py-0.5 text-[11px] font-semibold', diff.d.counts.broken ? 'bg-generation/12 text-generation' : 'bg-subtle text-muted')}>{diff.d.counts.broken} broken</span>
+            <span className="rounded-full bg-subtle px-2 py-0.5 text-[11px] font-semibold text-muted">{diff.d.counts.unchanged} unchanged</span>
+            <div className="ml-auto flex gap-2">
+              <Button onClick={() => onOpenRun(diff.id)}>Open re-test run</Button>
+              <Button variant="ghost" onClick={() => setDiff(null)} title="Dismiss"><X className="h-4 w-4" /></Button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(ICONS) as (keyof typeof ICONS)[]).map((k) => (
-              <ScoreCard key={k} label={pretty(k)} hint={`was ${diff.d.before[k].value?.toFixed(2) ?? '—'}`} Icon={ICONS[k]} s={diff.d.after[k]} delta={diff.d.deltas[k]} />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {METRICS.map((m) => (
+              <ScoreCard key={m.key} compact label={m.label} Icon={m.Icon} s={diff.d.after[m.key]} delta={diff.d.deltas[m.key]}
+                hint={`was ${diff.d.before[m.key].value?.toFixed(2) ?? '—'}`} />
             ))}
           </div>
-          <button onClick={() => onOpenRun(diff.id)} className="mt-2.5 w-full rounded-lg px-3 py-1.5 text-xs font-semibold text-indigo-600 ring-1 ring-indigo-200 hover:bg-indigo-50">
-            Open the re-test run
-          </button>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

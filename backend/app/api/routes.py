@@ -121,11 +121,21 @@ def list_runs(corpus_id: str | None = None) -> list[dict]:
     return store.latest(corpus_id)
 
 
+_SUMMARY = ("qid", "verdict", "sub_cause", "confidence", "needs_review", "max_tier_reached", "prescription",
+            "total_llm_calls", "total_cached_calls", "total_latency_ms")
+
+
 @router.get("/runs/{run_id}")
-def get_run(run_id: str) -> dict:
+def get_run(run_id: str, full: bool = False) -> dict:
+    """Run overview. Per-question detail (traces, lens evidence) lives in /questions/{qid} unless full=true."""
     run = _run_or_404(run_id)
     qs = {q.qid: q for q in load_questions(run["corpus_id"])}
-    return {**run, "questions": [qs[q].model_dump() for q in run["qids"] if q in qs]}
+    out = {**run, "questions": [qs[q].model_dump() for q in run["qids"] if q in qs]}
+    if not full:
+        out["traces"] = []
+        out["diagnoses"] = [{k: d.get(k) for k in _SUMMARY} | {"lenses_run": [l["lens"] for l in d["lens_results"]]}
+                            for d in run["diagnoses"]]
+    return out
 
 
 @router.get("/runs/{run_id}/questions/{qid}")

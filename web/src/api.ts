@@ -30,6 +30,7 @@ export interface LensResult {
   confidence: number
   evidence: Record<string, any>
   llm_calls: number
+  cached_calls?: number
   latency_ms: number
 }
 
@@ -43,7 +44,22 @@ export interface Diagnosis {
   max_tier_reached: number
   prescription: string | null
   total_llm_calls: number
+  total_cached_calls?: number
   total_latency_ms: number
+}
+
+/** What GET /runs/{id} returns per question; full detail comes from the autopsy endpoint. */
+export interface DiagnosisSummary {
+  qid: string
+  verdict: Verdict
+  sub_cause: string | null
+  confidence: number
+  needs_review: boolean
+  max_tier_reached: number
+  prescription: string | null
+  total_llm_calls: number
+  total_cached_calls?: number
+  lenses_run: string[]
 }
 
 export interface Score { value: number | null; lo: number | null; hi: number | null; n: number }
@@ -64,7 +80,7 @@ export interface Run {
   status: 'running' | 'done' | 'error'
   progress: { done: number; total: number }
   traces: RagTrace[]
-  diagnoses: Diagnosis[]
+  diagnoses: DiagnosisSummary[]
   scorecards: Scorecards | Record<string, never>
   cost: Cost | Record<string, never>
   prescription: { sentences: string[]; patch: Partial<RagConfig> } | null
@@ -86,7 +102,7 @@ export interface Diff {
 }
 
 export interface CorpusInfo { corpus_id: string; n_docs: number; n_chunks: number; n_questions: number }
-export interface RunSummary { run_id: string; corpus_id: string; config: RagConfig; status: string; parent_run_id: string | null }
+export interface RunSummary { run_id: string; corpus_id: string; config: RagConfig; status: string; parent_run_id: string | null; scorecards?: Partial<Scorecards> }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, init)
@@ -120,17 +136,4 @@ export const api = {
 export const DEFAULT_CONFIG: RagConfig = { chunk_size: 512, chunk_overlap: 64, k: 5, retrieval: 'dense', rerank: false, prompt_style: 'basic' }
 export const BAD_CONFIG: RagConfig = { chunk_size: 1024, chunk_overlap: 64, k: 3, retrieval: 'dense', rerank: false, prompt_style: 'basic' }
 
-export const VERDICT_STYLE: Record<Verdict, { dot: string; text: string; bg: string; label: string }> = {
-  ok: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', label: 'OK' },
-  retrieval: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', label: 'Retrieval' },
-  generation: { dot: 'bg-rose-500', text: 'text-rose-700', bg: 'bg-rose-50', label: 'Generation' },
-  abstention: { dot: 'bg-violet-500', text: 'text-violet-700', bg: 'bg-violet-50', label: 'Abstention' },
-  uncertain: { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100', label: 'Uncertain' },
-}
-export const CAUSE_COLOR: Record<string, string> = {
-  ok: '#10b981', recall_miss: '#f59e0b', ranking_miss: '#fbbf24', chunking_miss: '#d97706',
-  hallucination: '#f43f5e', misread_incomplete: '#fb7185', lucky_guess: '#e11d48', parametric_answer: '#be123c',
-  wrong_chunk_reliance: '#f97316', abstention_failure: '#8b5cf6', uncertain: '#94a3b8',
-  retrieval: '#f59e0b', generation: '#f43f5e', abstention: '#8b5cf6',
-}
 export const pretty = (s: string | null | undefined) => (s ?? '').replace(/_/g, ' ')

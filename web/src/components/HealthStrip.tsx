@@ -1,79 +1,91 @@
 import { CheckCircle2, FileSearch, ShieldCheck, Target } from 'lucide-react'
 import type { Cost, Score, Scorecards } from '../api'
-import { CAUSE_COLOR, pretty } from '../api'
+import { pretty } from '../api'
+import { Card, VERDICT, causeFamily, cx, scoreTone } from '../ui'
 import CostCounter from './CostCounter'
 
-const CARDS = [
-  { key: 'context_relevance', label: 'Context relevance', hint: 'gold chunk in top-k', Icon: FileSearch },
-  { key: 'faithfulness', label: 'Faithfulness', hint: 'supported sentences', Icon: ShieldCheck },
-  { key: 'accuracy', label: 'Accuracy', hint: 'correct vs gold answer', Icon: Target },
-  { key: 'abstention', label: 'Abstention', hint: '"I don\'t know" when it should', Icon: CheckCircle2 },
+export const METRICS = [
+  { key: 'context_relevance', label: 'Context relevance', hint: 'Right chunk retrieved in top-k', Icon: FileSearch },
+  { key: 'faithfulness', label: 'Faithfulness', hint: 'Answer sentences backed by context', Icon: ShieldCheck },
+  { key: 'accuracy', label: 'Accuracy', hint: 'Answer matches the gold answer', Icon: Target },
+  { key: 'abstention', label: 'Abstention', hint: 'Says "I don\'t know" when it should', Icon: CheckCircle2 },
 ] as const
 
-export function tone(v: number | null) {
-  if (v === null) return { text: 'text-slate-400', bar: 'bg-slate-200', ring: 'ring-slate-200' }
-  if (v >= 0.8) return { text: 'text-emerald-600', bar: 'bg-emerald-500', ring: 'ring-emerald-200' }
-  if (v >= 0.6) return { text: 'text-amber-600', bar: 'bg-amber-500', ring: 'ring-amber-200' }
-  return { text: 'text-rose-600', bar: 'bg-rose-500', ring: 'ring-rose-200' }
-}
-
-export function ScoreCard({ label, hint, Icon, s, delta }: { label: string; hint: string; Icon: typeof Target; s?: Score; delta?: number | null }) {
+export function ScoreCard({ label, hint, Icon, s, delta, compact }: {
+  label: string; hint: string; Icon: typeof Target; s?: Score; delta?: number | null; compact?: boolean
+}) {
   const v = s?.value ?? null
-  const t = tone(v)
+  const tone = scoreTone(v)
   return (
-    <div className="flex-1 min-w-[150px] rounded-xl bg-white p-3 ring-1 ring-slate-200">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-        <Icon className={`h-3.5 w-3.5 ${t.text}`} /> {label}
+    <Card className={cx('relative overflow-hidden', compact && 'p-3')}>
+      <div className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-muted" title={hint}>
+        <Icon className="h-4 w-4 shrink-0" style={{ color: tone.color }} />
+        <span className="truncate">{label}</span>
       </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span className={`text-2xl font-semibold tabular-nums ${t.text}`}>{v === null ? '—' : v.toFixed(2)}</span>
-        {s && v !== null && <span className="text-xs text-slate-400 tabular-nums">± {((s.hi! - s.lo!) / 2).toFixed(2)}</span>}
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className={cx('font-semibold tabular-nums tracking-tight text-ink', compact ? 'text-xl' : 'text-[28px] leading-none')}>
+          {v === null ? '—' : v.toFixed(2)}
+        </span>
+        {s && v !== null && s.lo !== null && s.hi !== null && (
+          <span className="text-xs tabular-nums text-faint">±{((s.hi - s.lo) / 2).toFixed(2)}</span>
+        )}
+        {!compact && v !== null && (
+          <span className={cx('ml-auto self-center shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide', tone.text)}
+            style={{ background: `color-mix(in srgb, ${tone.color} 12%, transparent)` }}>
+            {tone.label}
+          </span>
+        )}
         {delta != null && delta !== 0 && (
-          <span className={`ml-auto text-xs font-semibold tabular-nums ${delta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+          <span className={cx('ml-auto text-xs font-semibold tabular-nums', delta > 0 ? 'text-ok' : 'text-generation')}>
+            {delta > 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(2)}
           </span>
         )}
       </div>
-      <div className="mt-1.5 h-1 rounded-full bg-slate-100">
-        <div className={`h-1 rounded-full ${t.bar}`} style={{ width: `${(v ?? 0) * 100}%` }} />
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-subtle">
+        <div className="h-full rounded-full" style={{ width: `${(v ?? 0) * 100}%`, background: tone.color }} />
       </div>
-      <div className="mt-1 text-[11px] text-slate-400">{hint}{s?.n ? ` · n=${s.n}` : ''}</div>
-    </div>
+      <div className="mt-2 truncate text-[11px] text-muted" title={hint}>{hint}{s?.n ? <span className="text-faint"> · n={s.n}</span> : null}</div>
+    </Card>
   )
 }
 
-export function CauseBar({ causes }: { causes: Record<string, number> }) {
+export function CauseBreakdown({ causes }: { causes: Record<string, number> }) {
   const total = Object.values(causes).reduce((a, b) => a + b, 0) || 1
-  const entries = Object.entries(causes).sort((a, b) => (a[0] === 'ok' ? -1 : b[0] === 'ok' ? 1 : b[1] - a[1]))
+  const failures = Object.entries(causes).filter(([c]) => c !== 'ok').sort((a, b) => b[1] - a[1])
+  const ok = causes.ok ?? 0
+  const nFail = failures.reduce((a, [, n]) => a + n, 0)
   return (
-    <div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
-        {entries.map(([c, n]) => (
-          <div key={c} title={`${pretty(c)}: ${n}`} style={{ width: `${(100 * n) / total}%`, background: CAUSE_COLOR[c] ?? '#94a3b8' }} />
+    <Card>
+      <div className="text-xs font-medium text-muted">Diagnosis</div>
+      <div className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap">
+        <span className="text-[28px] font-semibold leading-none tabular-nums tracking-tight text-ink">{nFail}</span>
+        <span className="text-xs text-muted">failing of {total}</span>
+      </div>
+      <div className="mt-3 flex h-2.5 gap-0.5 overflow-hidden rounded-full">
+        {ok > 0 && <div style={{ width: `${(100 * ok) / total}%`, background: VERDICT.ok.hex, opacity: 0.35 }} title={`healthy: ${ok}`} />}
+        {failures.map(([c, n]) => (
+          <div key={c} style={{ width: `${(100 * n) / total}%`, background: VERDICT[causeFamily(c)].hex }} title={`${pretty(c)}: ${n}`} />
         ))}
       </div>
-      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-        {entries.map(([c, n]) => (
-          <span key={c} className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full" style={{ background: CAUSE_COLOR[c] ?? '#94a3b8' }} />
-            {pretty(c)} <b className="tabular-nums text-slate-700">{n}</b>
-          </span>
+      <ul className="mt-2.5 space-y-1">
+        {failures.length === 0 && <li className="text-xs text-ok">No failures found</li>}
+        {failures.slice(0, 4).map(([c, n]) => (
+          <li key={c} className="flex items-center gap-2 text-xs">
+            <span className="h-2 w-2 rounded-full" style={{ background: VERDICT[causeFamily(c)].hex }} />
+            <span className="truncate text-ink-2">{pretty(c)}</span>
+            <span className="ml-auto font-semibold tabular-nums text-ink">{n}</span>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </Card>
   )
 }
 
 export default function HealthStrip({ sc, cost }: { sc?: Scorecards; cost?: Cost }) {
   return (
-    <div className="flex flex-wrap gap-3">
-      {CARDS.map((c) => (
-        <ScoreCard key={c.key} label={c.label} hint={c.hint} Icon={c.Icon} s={sc?.[c.key]} />
-      ))}
-      <div className="flex-[1.4] min-w-[260px] rounded-xl bg-white p-3 ring-1 ring-slate-200">
-        <div className="mb-2 text-xs font-medium text-slate-500">Root causes</div>
-        {sc?.root_causes ? <CauseBar causes={sc.root_causes} /> : <div className="text-xs text-slate-400">No run yet</div>}
-      </div>
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      {METRICS.map((m) => <ScoreCard key={m.key} label={m.label} hint={m.hint} Icon={m.Icon} s={sc?.[m.key]} />)}
+      {sc?.root_causes ? <CauseBreakdown causes={sc.root_causes} /> : <Card><span className="text-xs text-muted">Diagnosis</span></Card>}
       <CostCounter cost={cost} />
     </div>
   )

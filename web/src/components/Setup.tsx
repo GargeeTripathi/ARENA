@@ -1,0 +1,86 @@
+import { Check, Database, FileUp, Loader2, Play, Sparkles } from 'lucide-react'
+import { useRef, type ReactNode } from 'react'
+import type { CorpusInfo, TestQuestion } from '../api'
+import { pretty } from '../api'
+import { Button, Card, cx } from '../ui'
+
+export const PRESETS = {
+  bad: { label: 'Seeded bad config', desc: '1024-word chunks, k = 3, dense only, basic prompt. Built to fail.' },
+  default: { label: 'Default config', desc: '512-word chunks, k = 5, dense, basic prompt.' },
+} as const
+export type Preset = keyof typeof PRESETS
+
+function Step({ n, title, done, active, children }: { n: number; title: string; done: boolean; active: boolean; children: ReactNode }) {
+  return (
+    <Card className={cx('flex flex-col', active && 'border-accent/50 ring-1 ring-accent/20', !done && !active && 'opacity-60')}>
+      <div className="flex items-center gap-2.5">
+        <span className={cx('flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+          done ? 'bg-ok text-white' : active ? 'bg-accent text-accent-ink' : 'bg-subtle text-muted')}>
+          {done ? <Check className="h-3.5 w-3.5" /> : n}
+        </span>
+        <span className="text-sm font-semibold text-ink">{title}</span>
+      </div>
+      <div className="mt-3 flex flex-1 flex-col">{children}</div>
+    </Card>
+  )
+}
+
+export default function Setup({ corpus, questions, busy, preset, setPreset, onUpload, onDemo, onGenerate, onRun }: {
+  corpus: CorpusInfo | null; questions: TestQuestion[]; busy: string | null; preset: Preset; setPreset: (p: Preset) => void
+  onUpload: (f: FileList) => void; onDemo: () => void; onGenerate: () => void; onRun: () => void
+}) {
+  const file = useRef<HTMLInputElement>(null)
+  const byType = questions.reduce<Record<string, number>>((m, q) => ({ ...m, [q.qtype]: (m[q.qtype] ?? 0) + 1 }), {})
+  const step = !corpus ? 1 : !questions.length ? 2 : 3
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Step n={1} title="Add documents" done={!!corpus} active={step === 1}>
+        <p className="text-xs text-muted">PDF, Word, Markdown or text. We parse, chunk and index them.</p>
+        {corpus && <p className="mt-2 text-xs text-ink-2"><b className="text-ink">{corpus.n_docs}</b> documents · <b className="text-ink">{corpus.n_chunks}</b> chunks indexed</p>}
+        <input ref={file} type="file" multiple accept=".pdf,.docx,.txt,.md" className="hidden"
+          onChange={(e) => e.target.files?.length && onUpload(e.target.files)} />
+        <div className="mt-auto flex gap-2 pt-4">
+          <Button onClick={() => file.current?.click()} disabled={!!busy}>
+            {busy === 'upload' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}Upload
+          </Button>
+          <Button onClick={onDemo} disabled={!!busy} variant={corpus ? 'secondary' : 'primary'}>
+            {busy === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}Use demo corpus
+          </Button>
+        </div>
+      </Step>
+
+      <Step n={2} title="Generate test questions" done={questions.length > 0} active={step === 2}>
+        <p className="text-xs text-muted">Each question is tied to the exact sentence that answers it, so we always know the right chunk.</p>
+        {questions.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {Object.entries(byType).map(([t, n]) => <span key={t} className="rounded-md bg-subtle px-2 py-0.5 text-[11px] text-ink-2"><b>{n}</b> {pretty(t)}</span>)}
+          </div>
+        )}
+        <div className="mt-auto pt-4">
+          <Button onClick={onGenerate} disabled={!corpus || !!busy} variant={step === 2 ? 'primary' : 'secondary'}>
+            {busy === 'generate' ? <><Loader2 className="h-4 w-4 animate-spin" />Generating (a few minutes)…</> : <><Sparkles className="h-4 w-4" />{questions.length ? 'Regenerate' : 'Generate questions'}</>}
+          </Button>
+        </div>
+      </Step>
+
+      <Step n={3} title="Evaluate a RAG config" done={false} active={step === 3}>
+        <div className="space-y-2">
+          {(Object.keys(PRESETS) as Preset[]).map((k) => (
+            <label key={k} className={cx('flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition',
+              preset === k ? 'border-accent/60 bg-accent/5' : 'border-line hover:bg-subtle')}>
+              <input type="radio" name="preset" checked={preset === k} onChange={() => setPreset(k)} className="mt-0.5 accent-[var(--accent)]" />
+              <span><span className="block text-[13px] font-medium text-ink">{PRESETS[k].label}</span>
+                <span className="block text-[11px] text-muted">{PRESETS[k].desc}</span></span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-auto pt-4">
+          <Button variant="primary" onClick={onRun} disabled={!questions.length || !!busy}>
+            {busy === 'run' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}Run evaluation
+          </Button>
+        </div>
+      </Step>
+    </div>
+  )
+}
