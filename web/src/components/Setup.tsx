@@ -43,7 +43,7 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
         <input ref={file} type="file" multiple accept=".pdf,.docx,.txt,.md" className="hidden"
           onChange={(e) => e.target.files?.length && onUpload(e.target.files)} />
         <div className="mt-auto flex gap-2 pt-4">
-          <Button onClick={() => file.current?.click()} disabled={!!busy}>
+          <Button onClick={() => file.current?.click()} disabled={STATIC || !!busy} title={STATIC ? 'Needs the local backend' : undefined}>
             {busy === 'upload' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}Upload
           </Button>
           <Button onClick={onDemo} disabled={!!busy} variant={corpus ? 'secondary' : 'primary'}>
@@ -60,7 +60,7 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
           </div>
         )}
         <div className="mt-auto pt-4">
-          <Button onClick={onGenerate} disabled={!corpus || !!busy} variant={step === 2 ? 'primary' : 'secondary'}>
+          <Button onClick={onGenerate} disabled={STATIC || !corpus || !!busy} title={STATIC ? 'Needs the local backend' : undefined} variant={step === 2 ? 'primary' : 'secondary'}>
             {busy === 'generate' ? <><Loader2 className="h-4 w-4 animate-spin" />Generating (a few minutes)…</> : <><Sparkles className="h-4 w-4" />{questions.length ? 'Regenerate' : 'Generate questions'}</>}
           </Button>
         </div>

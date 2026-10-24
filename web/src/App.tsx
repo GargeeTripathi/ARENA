@@ -1,4 +1,4 @@
-import { Activity, Loader2, Moon, Plus, Stethoscope, Sun } from 'lucide-react'
+import { Activity, ArrowLeft, Loader2, Moon, Plus, Stethoscope, Sun } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { CorpusInfo, Cost, Run, RunSummary, Scorecards, TestQuestion } from './api'
 import { BAD_CONFIG, DEFAULT_CONFIG, STATIC, api } from './api'
@@ -81,6 +81,14 @@ export default function App() {
   const showSetup = setup || !run
   const ThemeIcon = theme === 'dark' ? Sun : Moon
 
+  // Load the demo corpus. In the hosted read-only demo there is nothing to set up, so go straight to the finished run.
+  const startDemo = () => act('demo', async () => {
+    const c = await api.demo()
+    await openCorpus(c)
+    if (STATIC) await openRun((await api.startRun(c.corpus_id, BAD_CONFIG)).run_id)
+    else setRun(null)
+  })
+
   const goHome = () => { // back to the start page; the run stays reachable from the run picker
     setRun(null); setSetup(false); setSelected(null); setErr(null)
     try { localStorage.removeItem('run') } catch { /* storage blocked */ }
@@ -144,12 +152,7 @@ export default function App() {
 
         {showSetup ? (
           <section>
-            {!run ? <Hero busy={busy} onDemo={() => act('demo', async () => {
-              const c = await api.demo()
-              await openCorpus(c)
-              if (STATIC) await openRun((await api.startRun(c.corpus_id, BAD_CONFIG)).run_id)  // hosted demo: straight to the autopsy
-              else setRun(null)
-            })} /> : (
+            {!run ? <Hero busy={busy} onDemo={startDemo} /> : (
               <div className="mb-5 flex items-end gap-3">
                 <div>
                   <h1 className="text-2xl font-bold text-ink">New <span className="text-brand">evaluation</span></h1>
@@ -160,13 +163,18 @@ export default function App() {
             )}
             <Setup corpus={corpus} questions={questions} busy={busy} preset={preset} setPreset={setPreset}
               onUpload={(f) => act('upload', async () => { await openCorpus(await api.upload(f)); setRun(null) })}
-              onDemo={() => act('demo', async () => { await openCorpus(await api.demo()); setRun(null) })}
+              onDemo={startDemo}
               onGenerate={() => act('generate', async () => setQuestions(await api.generate(corpus!.corpus_id)))}
               onRun={() => act('run', async () => openRun((await api.startRun(corpus!.corpus_id, preset === 'bad' ? BAD_CONFIG : DEFAULT_CONFIG)).run_id))} />
           </section>
         ) : run && (
           <>
             <section className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" className="mr-1 px-2.5"
+                onClick={() => run.parent_run_id ? act('open', () => openRun(run.parent_run_id!)) : goHome()}
+                title={run.parent_run_id ? 'Back to the original run' : 'Back to the start page'}>
+                <ArrowLeft className="h-4 w-4" />{run.parent_run_id ? 'Original run' : 'Back'}
+              </Button>
               <h1 className="mr-2 text-2xl font-bold text-ink">{run.parent_run_id ? 'Re-test' : 'Evaluation'} <span className="text-brand">run</span></h1>
               <Tag className="font-mono">{run.config.chunk_size}-word chunks</Tag>
               <Tag className="font-mono">k = {run.config.k}</Tag>
