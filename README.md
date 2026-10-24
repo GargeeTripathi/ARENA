@@ -155,7 +155,7 @@ flowchart TB
     end
 
     U --> V
-    UI -- "uploads · new runs" --> T --> API
+    UI -- "uploads · new runs" --> T --> B
     B --> M
     B --> S
     B --> L
