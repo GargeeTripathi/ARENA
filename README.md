@@ -20,6 +20,9 @@
 
 </div>
 
+> [!NOTE]
+> **A run on uploaded documents takes more time, so we built Demo mode. We recommend using Demo mode to see how ARENA works and the kind of results it gives.**
+
 ---
 
 ## Table of contents
@@ -77,6 +80,9 @@ and error.
 ## Live demo
 
 **https://rag-autopsy.vercel.app**
+
+> [!NOTE]
+> **A run on uploaded documents takes more time, so we built Demo mode. We recommend using Demo mode to see how ARENA works and the kind of results it gives.**
 
 - **Explore the live demo** opens the seeded bad-config run: 83 questions, 12 diagnosed failures, all autopsies, and the
   before/after re-test. This part is built into the site and always works.
