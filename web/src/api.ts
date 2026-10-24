@@ -116,13 +116,14 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T,>(path: string, body?: unknown) =>
   req<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) })
 
-export const api = {
+const liveApi = {
   upload: (files: FileList) => {
     const fd = new FormData()
     Array.from(files).forEach((f) => fd.append('files', f))
     return req<CorpusInfo>('/api/corpus', { method: 'POST', body: fd })
   },
   demo: () => post<CorpusInfo>('/api/corpus/demo'),
+  corpus: (cid: string) => req<CorpusInfo>(`/api/corpus/${cid}`),
   questions: (cid: string) => req<TestQuestion[]>(`/api/corpus/${cid}/questions`),
   generate: (cid: string, n_per_type = 2) => post<TestQuestion[]>(`/api/corpus/${cid}/questions`, { n_per_type }),
   startRun: (corpus_id: string, config: RagConfig) => post<{ run_id: string }>('/api/runs', { corpus_id, config }),
@@ -132,6 +133,39 @@ export const api = {
   fix: (id: string) => post<{ run_id: string; patch: Partial<RagConfig> }>(`/api/runs/${id}/fix`, {}),
   diff: (a: string, b: string) => req<Diff>(`/api/runs/${a}/diff/${b}`),
 }
+
+/** Hosted read-only demo (e.g. Vercel): the same calls, answered from JSON files exported by
+ *  backend/scripts/export_static.py. Built with VITE_STATIC=1. */
+export const STATIC = import.meta.env.VITE_STATIC === '1'
+const offline = (what: string) => Promise.reject(new Error(`${what} needs the Python backend. This online demo is read-only; run the project locally to try your own documents.`))
+const file = <T,>(name: string) => req<T>(`/demo/${name}.json`)
+const manifest = () => file<{ bad_run: string; fix_run: string; corpus_id: string }>('manifest')
+
+const staticApi: typeof liveApi = {
+  upload: () => offline('Uploading documents'),
+  demo: () => file<CorpusInfo>('corpus'),
+  corpus: () => file<CorpusInfo>('corpus'),
+  questions: () => file<TestQuestion[]>('questions'),
+  generate: () => offline('Generating questions'),
+  startRun: async (_cid, config) => {
+    if (config.chunk_size !== BAD_CONFIG.chunk_size || config.k !== BAD_CONFIG.k) return offline('Evaluating this config')
+    return { run_id: (await manifest()).bad_run }
+  },
+  runs: () => file<RunSummary[]>('runs'),
+  run: (id) => file<Run>(`run_${id}`),
+  autopsy: (id, qid) => file<Autopsy>(`autopsy_${id}_${qid}`),
+  fix: async (id) => {
+    const m = await manifest()
+    if (id !== m.bad_run) return offline('Re-testing this run')
+    const r = await file<Run>(`run_${m.fix_run}`)
+    const base = (await file<Run>(`run_${m.bad_run}`)).config as unknown as Record<string, unknown>
+    const patch = Object.fromEntries(Object.entries(r.config).filter(([k, v]) => base[k] !== v)) as Partial<RagConfig>
+    return { run_id: m.fix_run, patch }
+  },
+  diff: (a, b) => file<Diff>(`diff_${a}_${b}`),
+}
+
+export const api = STATIC ? staticApi : liveApi
 
 export const DEFAULT_CONFIG: RagConfig = { chunk_size: 512, chunk_overlap: 64, k: 5, retrieval: 'dense', rerank: false, prompt_style: 'basic' }
 export const BAD_CONFIG: RagConfig = { chunk_size: 1024, chunk_overlap: 64, k: 3, retrieval: 'dense', rerank: false, prompt_style: 'basic' }

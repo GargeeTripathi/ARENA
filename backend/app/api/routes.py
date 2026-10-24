@@ -59,6 +59,17 @@ async def make_questions(corpus_id: str, req: QuestionsReq) -> list[TestQuestion
     return await generate_questions(corpus_id, req.n_per_type, req.types)
 
 
+@router.get("/corpus/{corpus_id}")
+def corpus_info(corpus_id: str) -> dict:
+    d = indexer.corpus_dir(corpus_id)
+    if not d.exists():
+        raise HTTPException(404, "unknown corpus")
+    cfg = RagConfig()
+    chunks = indexer.build_index(corpus_id, cfg.chunk_size, cfg.chunk_overlap)
+    return {"corpus_id": corpus_id, "n_docs": len({c.doc_id for c in chunks}), "n_chunks": len(chunks),
+            "n_questions": len(load_questions(corpus_id))}
+
+
 @router.get("/corpus/{corpus_id}/questions")
 def get_questions(corpus_id: str) -> list[TestQuestion]:
     return load_questions(corpus_id)

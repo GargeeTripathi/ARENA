@@ -2,6 +2,7 @@ import { Check, Database, FileUp, Loader2, Play, Sparkles } from 'lucide-react'
 import { useRef, type ReactNode } from 'react'
 import type { CorpusInfo, TestQuestion } from '../api'
 import { pretty } from '../api'
+import { STATIC } from '../api'
 import { Button, Card, cx } from '../ui'
 
 export const PRESETS = {
@@ -37,6 +38,7 @@ export default function Setup({ corpus, questions, busy, preset, setPreset, onUp
     <div className="grid gap-4 lg:grid-cols-3">
       <Step n={1} title="Add documents" done={!!corpus} active={step === 1}>
         <p className="text-xs text-muted">PDF, Word, Markdown or text. We parse, chunk and index them.</p>
+        {STATIC && <p className="mt-2 rounded-md bg-accent/10 px-2 py-1.5 text-[11px] text-ink-2">Online demo: uploads and new runs need the local backend. The demo corpus and its finished runs are fully explorable.</p>}
         {corpus && <p className="mt-2 text-xs text-ink-2"><b className="text-ink">{corpus.n_docs}</b> documents · <b className="text-ink">{corpus.n_chunks}</b> chunks indexed</p>}
         <input ref={file} type="file" multiple accept=".pdf,.docx,.txt,.md" className="hidden"
           onChange={(e) => e.target.files?.length && onUpload(e.target.files)} />
@@ -113,7 +115,7 @@ export function Hero({ onDemo, busy }: { onDemo: () => void; busy: string | null
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Button variant="primary" onClick={onDemo} disabled={!!busy} className="px-5 py-2.5 text-sm">
-              {busy === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}Try the demo corpus
+              {busy === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}{STATIC ? 'Explore the live demo' : 'Try the demo corpus'}
             </Button>
             <a href="#setup" className="inline-flex items-center rounded-lg border border-line-strong px-5 py-2.5 text-sm font-medium text-ink-2 transition hover:border-accent/60 hover:text-ink">
               Use my own documents

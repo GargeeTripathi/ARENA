@@ -1,7 +1,7 @@
 import { Activity, Loader2, Moon, Plus, Stethoscope, Sun } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { CorpusInfo, Cost, Run, RunSummary, Scorecards, TestQuestion } from './api'
-import { BAD_CONFIG, DEFAULT_CONFIG, api } from './api'
+import { BAD_CONFIG, DEFAULT_CONFIG, STATIC, api } from './api'
 import AutopsyView from './components/AutopsyView'
 import FailureList from './components/FailureList'
 import HealthStrip from './components/HealthStrip'
@@ -53,7 +53,18 @@ export default function App() {
       : r.diagnoses.find((d) => d.verdict !== 'ok')?.qid ?? r.diagnoses[0]?.qid ?? null))
   }, [])
 
-  useEffect(() => { // restore last session
+  useEffect(() => { // open ?run=<id>&q=<qid> (shareable link), else restore last session
+    const url = new URLSearchParams(location.search)
+    const linked = url.get('run')
+    if (linked) {
+      api.run(linked).then(async (r) => {
+        await openCorpus(await api.corpus(r.corpus_id)).catch(() => {})
+        await openRun(linked)
+        const q = url.get('q')
+        if (q) setSelected(q)
+      }).catch(() => {})
+      return
+    }
     const c = load('corpus'), r = load('run')
     if (c) openCorpus(JSON.parse(c)).then(() => { if (r) return openRun(r) }).catch(() => {})
   }, [openCorpus, openRun])
@@ -82,6 +93,11 @@ export default function App() {
             </div>
           </div>
 
+          {STATIC && (
+            <span className="ml-3 hidden rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[11px] font-semibold text-accent sm:inline">
+              Live demo · read-only
+            </span>
+          )}
           {corpus && (
             <div className="ml-4 hidden items-center gap-2 text-xs text-muted md:flex">
               <Tag>{corpus.n_docs} docs</Tag><Tag>{questions.length} questions</Tag>
@@ -120,7 +136,12 @@ export default function App() {
 
         {showSetup ? (
           <section>
-            {!run ? <Hero onDemo={() => act('demo', async () => { await openCorpus(await api.demo()); setRun(null) })} busy={busy} /> : (
+            {!run ? <Hero busy={busy} onDemo={() => act('demo', async () => {
+              const c = await api.demo()
+              await openCorpus(c)
+              if (STATIC) await openRun((await api.startRun(c.corpus_id, BAD_CONFIG)).run_id)  // hosted demo: straight to the autopsy
+              else setRun(null)
+            })} /> : (
               <div className="mb-5 flex items-end gap-3">
                 <div>
                   <h1 className="text-2xl font-bold text-ink">New <span className="text-brand">evaluation</span></h1>
