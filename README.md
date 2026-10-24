@@ -10,7 +10,7 @@ Upload documents → RAG Autopsy builds a baseline RAG over them, generates type
 **The core trick:** because every question has a gold chunk, we can re-run the generator with the gold chunk swapped
 in. If the answer becomes correct, that *proves* the retriever was at fault; if it stays wrong, the generator is.
 
-![dashboard](docs/screenshot.png)
+<!-- screenshot: save one as docs/screenshot.png and link it here -->
 
 ## Quick start
 
@@ -53,6 +53,15 @@ Free tiers have per-minute and per-day token caps; the client waits out "try aga
 call and checker-model inference is disk-cached, so a run only ever pays once.
 
 CLI checks (from `backend/`): `pytest`, `scripts/smoke_rag.py`, `scripts/gen_questions.py`, `scripts/run_eval.py [--bad]`.
+
+**Before a demo**, with the API running: `.venv/Scripts/python scripts/prewarm_demo.py`. It replays demo corpus ->
+seeded bad config -> prescribed fix -> diff through the API. The first pass computes; after that every LLM call,
+checker score and rerank is cached, and a cold restart through the whole flow takes under a minute (51 s measured on
+a CPU-only laptop).
+
+Demo results on the bundled corpus (83 questions, seeded bad config `1024 / k=3 / dense / basic prompt`):
+4 ranking misses + 8 abstention failures found; the prescribed fix (reranker, k=10, grounded prompt) fixes
+10 of 12 and breaks none. Context relevance and accuracy on the failed set go 0 -> 1.0, abstention 0 -> 0.75.
 
 ## How it works
 
