@@ -176,6 +176,10 @@ export function Hero({ onDemo, busy }: { onDemo: () => void; busy: string | null
               Use my own documents
             </a>
           </div>
+          <p className="mt-5 flex max-w-2xl items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3.5 py-2.5 text-[13px] font-semibold leading-relaxed text-ink">
+            <span className="text-accent">Note:</span>
+            <span>A run on uploaded documents takes more time, so we built Demo mode. We recommend using Demo mode to see how ARENA works and the kind of results it gives.</span>
+          </p>
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
